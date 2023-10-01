@@ -1,0 +1,49 @@
+build_lib(
+  LIBNAME fnss
+  SOURCE_FILES
+    model/fnss-application.cpp
+    model/edge.cpp
+    model/event.cpp
+    model/fnss-event.cc
+    model/event-schedule.cpp
+    model/measurement-unit.cpp
+    model/fnss-node.cpp
+    model/parser.cpp
+    model/property-container.cpp
+    model/protocol-stack.cpp
+    model/quantity.cpp
+    model/topology.cpp
+    model/traffic-matrix.cpp
+    model/traffic-matrix-sequence.cpp
+    model/units.cpp
+    helper/fnss-simulation.cc
+
+  HEADER_FILES
+    model/fnss-application.h
+    model/edge.h
+    model/event.h
+    model/fnss-event.h
+    model/event-schedule.h
+    model/measurement-unit.h
+    model/fnss-node.h
+    model/pair.h
+    model/parser.h
+    model/property-container.h
+    model/protocol-stack.h
+    model/rapidxml.hpp
+    model/quantity.h
+    model/topology.h
+    model/traffic-matrix.h
+    model/traffic-matrix-sequence.h
+    model/units.h
+    helper/fnss-simulation.h
+  LIBRARIES_TO_LINK 
+    ${libnetwork}
+    ${libcore}
+    ${libinternet}
+    ${libpoint-to-point}
+    ${libapplications}
+  TEST_SOURCES
+    test/fnss-test-suite.cc
+   
+)

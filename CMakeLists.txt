@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.10..3.10)
 # ##############################################################################
 # Project name                        #
 # ##############################################################################
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp" CACHE STRING "Default CXX options" FORCE)
 project(NS3 CXX C)
 
 file(STRINGS VERSION NS3_VER)
@@ -14,6 +15,7 @@ file(STRINGS VERSION NS3_VER)
 set(AppleClang_MinVersion 11.0.0)
 set(Clang_MinVersion 6.0.0)
 set(GNU_MinVersion 8.0.0)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 # common options
 option(NS3_ASSERT "Enable assert on failure" OFF)
@@ -21,6 +23,9 @@ option(NS3_DES_METRICS "Enable DES Metrics event collection" OFF)
 option(NS3_EXAMPLES "Enable examples to be built" OFF)
 option(NS3_LOG "Enable logging to be built" OFF)
 option(NS3_TESTS "Enable tests to be built" OFF)
+
+
+option( NS3_VERBOSE "For find_external_library users, enabling the NS3_VERBOSE switch will enable the logging of search path directories for both headers and libraries. " OFF)
 
 # fd-net-device options
 option(NS3_EMU "Build with emulation support" ON)
