@@ -361,7 +361,7 @@ EmlsrManager::SwitchMainPhy(uint8_t linkId, bool noSwitchDelay)
                   "We should not ask the main PHY to switch channel while transmitting");
 
     // request the main PHY to switch channel
-    Simulator::ScheduleNow([=]() {
+    Simulator::ScheduleNow([=,this]() {
         auto delay = mainPhy->GetChannelSwitchDelay();
         NS_ASSERT_MSG(noSwitchDelay || delay <= m_lastAdvTransitionDelay,
                       "Transition delay (" << m_lastAdvTransitionDelay.As(Time::US)

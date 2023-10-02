@@ -247,7 +247,7 @@ EhtFrameExchangeManager::EmlsrSwitchToListening(const Mac48Address& address, con
     {
         if (m_mac->GetWifiRemoteStationManager(linkId)->GetEmlsrEnabled(*mldAddress))
         {
-            Simulator::Schedule(delay, [=]() {
+            Simulator::Schedule(delay, [=,this]() {
                 if (linkId != m_linkId)
                 {
                     // the reason for blocking the other EMLSR links has changed now
@@ -265,7 +265,7 @@ EhtFrameExchangeManager::EmlsrSwitchToListening(const Mac48Address& address, con
             // unblock all EMLSR links when the transition delay elapses
             Simulator::Schedule(delay + CommonInfoBasicMle::DecodeEmlsrTransitionDelay(
                                             emlCapabilities->get().emlsrTransitionDelay),
-                                [=]() {
+                                [=,this]() {
                                     m_mac->UnblockUnicastTxOnLinks(
                                         WifiQueueBlockedReason::WAITING_EMLSR_TRANSITION_DELAY,
                                         *mldAddress,

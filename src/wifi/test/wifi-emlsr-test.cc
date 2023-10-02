@@ -508,7 +508,7 @@ EmlsrOperationsTestBase::SetSsid(uint16_t aid, Mac48Address /* addr */)
     if (m_establishBaDl)
     {
         // trigger establishment of BA agreement with AP as originator
-        Simulator::Schedule(delay, [=]() {
+        Simulator::Schedule(delay, [=,this]() {
             m_apMac->GetDevice()->GetNode()->AddApplication(
                 GetApplication(DOWNLINK, aid - 1, 4, 1000));
         });
@@ -519,7 +519,7 @@ EmlsrOperationsTestBase::SetSsid(uint16_t aid, Mac48Address /* addr */)
     if (m_establishBaUl)
     {
         // trigger establishment of BA agreement with AP as recipient
-        Simulator::Schedule(delay, [=]() {
+        Simulator::Schedule(delay, [=,this]() {
             m_staMacs[aid - 1]->GetDevice()->GetNode()->AddApplication(
                 GetApplication(UPLINK, aid - 1, 4, 1000));
         });
@@ -527,7 +527,7 @@ EmlsrOperationsTestBase::SetSsid(uint16_t aid, Mac48Address /* addr */)
         delay += MilliSeconds(5);
     }
 
-    Simulator::Schedule(delay, [=]() {
+    Simulator::Schedule(delay, [=,this]() {
         if (aid < m_nEmlsrStations + m_nNonEmlsrStations)
         {
             // make the next STA start ML discovery & setup
@@ -1279,13 +1279,13 @@ EmlsrDlTxopTest::StartTraffic()
     // and the generation of other packets destined to the EMLSR clients
     for (std::size_t id = 0; id < m_nEmlsrStations; id++)
     {
-        Simulator::Schedule(m_fe2to3delay + MilliSeconds(5 * (id + 1)), [=]() {
+        Simulator::Schedule(m_fe2to3delay + MilliSeconds(5 * (id + 1)), [=,this]() {
             m_staMacs.at(id)->GetEmlsrManager()->SetAttribute(
                 "EmlsrLinkSet",
                 AttributeContainerValue<UintegerValue>({}));
         });
 
-        Simulator::Schedule(m_fe2to3delay + MilliSeconds(5 * (m_nEmlsrStations + 1)), [=]() {
+        Simulator::Schedule(m_fe2to3delay + MilliSeconds(5 * (m_nEmlsrStations + 1)), [=,this]() {
             m_apMac->GetDevice()->GetNode()->AddApplication(
                 GetApplication(DOWNLINK, id, 8 / m_nEmlsrStations, 650));
         });
@@ -1299,7 +1299,7 @@ EmlsrDlTxopTest::EnableEmlsrMode()
         "EmlsrLinkSet",
         AttributeContainerValue<UintegerValue>(m_emlsrLinks));
     m_lastAid++;
-    Simulator::Schedule(MilliSeconds(5), [=]() {
+    Simulator::Schedule(MilliSeconds(5), [=,this]() {
         if (m_lastAid < m_nEmlsrStations)
         {
             // make the next STA send EML Notification frame
@@ -2078,7 +2078,7 @@ EmlsrDlTxopTest::CheckEmlNotificationFrame(Ptr<const WifiMpdu> mpdu,
                                                     ackTxVector,
                                                     phy->GetPhyBand());
 
-    Simulator::Schedule(txDuration + phy->GetSifs() + ackDuration, [=]() {
+    Simulator::Schedule(txDuration + phy->GetSifs() + ackDuration, [=,this]() {
         if (frame.m_emlControl.emlsrMode == 1)
         {
             // EMLSR mode enabled. Check that all EMLSR links of the EMLSR clients are considered
@@ -2235,7 +2235,7 @@ EmlsrDlTxopTest::CheckInitialControlFrame(Ptr<const WifiMpdu> mpdu,
                 continue;
             }
 
-            Simulator::Schedule(txDuration + NanoSeconds(5), [=]() {
+            Simulator::Schedule(txDuration + NanoSeconds(5), [=,this]() {
                 for (uint8_t id = 0; id < m_staMacs[i]->GetNLinks(); id++)
                 {
                     // non-EMLSR links or links on which ICF is received are not blocked
@@ -2284,7 +2284,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
         // both EMLSR clients are about to receive a QoS data frame
         for (std::size_t clientId : {firstClientId, secondClientId})
         {
-            Simulator::Schedule(txDuration, [=]() {
+            Simulator::Schedule(txDuration, [=,this]() {
                 for (uint8_t id = 0; id < m_staMacs[clientId]->GetNLinks(); id++)
                 {
                     // link on which QoS data is received is not blocked
@@ -2329,7 +2329,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
 
         // immediately before the end of the PPDU, this link only is not blocked for the EMLSR
         // client on the AP MLD
-        Simulator::Schedule(txDuration - NanoSeconds(1), [=]() {
+        Simulator::Schedule(txDuration - NanoSeconds(1), [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_apMac,
@@ -2345,7 +2345,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
         // immediately before the end of the PPDU, all the links on the EMLSR client that is not
         // the recipient of the second QoS frame are unblocked (they are unblocked when the
         // PHY-RXSTART.indication is not received)
-        Simulator::Schedule(txDuration - NanoSeconds(1), [=]() {
+        Simulator::Schedule(txDuration - NanoSeconds(1), [=,this]() {
             for (uint8_t id = 0; id < m_staMacs[secondClientId]->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_staMacs[secondClientId],
@@ -2359,7 +2359,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
             }
         });
         // immediately after the end of the PPDU, all links are blocked for the EMLSR client
-        Simulator::Schedule(txDuration + NanoSeconds(1), [=]() {
+        Simulator::Schedule(txDuration + NanoSeconds(1), [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_apMac,
@@ -2375,7 +2375,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
         // immediately before the transition delay, all links are still blocked for the EMLSR client
         Simulator::Schedule(
             txDuration + m_transitionDelay.at(secondClientId) - NanoSeconds(1),
-            [=]() {
+            [=,this]() {
                 for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
                 {
                     CheckBlockedLink(
@@ -2393,7 +2393,7 @@ EmlsrDlTxopTest::CheckQosFrames(const WifiConstPsduMap& psduMap,
     case 3:
         // at the end of the third QoS frame, this link only is not blocked on the EMLSR
         // client receiving the frame
-        Simulator::Schedule(txDuration, [=]() {
+        Simulator::Schedule(txDuration, [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_staMacs[secondClientId],
@@ -2467,7 +2467,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
 
         // at the end of the PPDU, this link only is not blocked on both the EMLSR client and
         // the AP MLD
-        Simulator::Schedule(txDuration, [=]() {
+        Simulator::Schedule(txDuration, [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_staMacs[clientId],
@@ -2488,7 +2488,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
         });
         // a SIFS after the end of the PPDU, still this link only is not blocked on both the
         // EMLSR client and the AP MLD
-        Simulator::Schedule(txDuration + apPhy->GetSifs(), [=]() {
+        Simulator::Schedule(txDuration + apPhy->GetSifs(), [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_staMacs[clientId],
@@ -2516,7 +2516,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
     case 5:
         // at the end of the PPDU, this link only is not blocked on both the EMLSR client and
         // the AP MLD
-        Simulator::Schedule(txDuration, [=]() {
+        Simulator::Schedule(txDuration, [=,this]() {
             for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
             {
                 CheckBlockedLink(m_staMacs[clientId],
@@ -2539,7 +2539,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
         // EMLSR client and the AP MLD
         Simulator::Schedule(
             txDuration + apPhy->GetSifs() + cfEndTxDuration - MicroSeconds(1),
-            [=]() {
+            [=,this]() {
                 for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
                 {
                     CheckBlockedLink(m_staMacs[clientId],
@@ -2562,7 +2562,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
         // AP MLD
         Simulator::Schedule(
             txDuration + apPhy->GetSifs() + cfEndTxDuration + MicroSeconds(1),
-            [=]() {
+            [=,this]() {
                 for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
                 {
                     CheckBlockedLink(
@@ -2580,7 +2580,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
         Simulator::Schedule(
             txDuration + apPhy->GetSifs() + cfEndTxDuration + m_transitionDelay.at(clientId) -
                 MicroSeconds(1),
-            [=]() {
+            [=,this]() {
                 for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
                 {
                     CheckBlockedLink(
@@ -2597,7 +2597,7 @@ EmlsrDlTxopTest::CheckBlockAck(const WifiConstPsduMap& psduMap,
         Simulator::Schedule(
             txDuration + apPhy->GetSifs() + cfEndTxDuration + m_transitionDelay.at(clientId) +
                 MicroSeconds(1),
-            [=]() {
+            [=,this]() {
                 for (uint8_t id = 0; id < m_apMac->GetNLinks(); id++)
                 {
                     CheckBlockedLink(
@@ -2979,7 +2979,7 @@ EmlsrLinkSwitchTest::CheckInitialControlFrame(const WifiConstPsduMap& psduMap,
         WifiPhy::CalculateTxDuration(psduMap, txVector, m_apMac->GetWifiPhy(linkId)->GetPhyBand());
 
     // check that PHYs are operating on the expected link after the reception of the ICF
-    Simulator::Schedule(txDuration + NanoSeconds(1), [=]() {
+    Simulator::Schedule(txDuration + NanoSeconds(1), [=,this]() {
         std::size_t nRxOk = m_switchAuxPhy ? 4 : 3; // successfully received ICFs
 
         if (m_countQoSframes < nRxOk)
@@ -3003,7 +3003,7 @@ EmlsrLinkSwitchTest::CheckInitialControlFrame(const WifiConstPsduMap& psduMap,
         if (m_switchAuxPhy)
         {
             NS_TEST_EXPECT_MSG_LT(m_countQoSframes, nRxOk, "Unexpected number of ICFs");
-            Simulator::Schedule(phyRecvIcf->GetChannelSwitchDelay(), [=]() {
+            Simulator::Schedule(phyRecvIcf->GetChannelSwitchDelay(), [=,this]() {
                 NS_TEST_EXPECT_MSG_EQ(m_staMacs[0]->GetWifiPhy(*currMainPhyLinkId),
                                       phyRecvIcf,
                                       "PHY operating on link where Main PHY was before switching "
