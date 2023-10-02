@@ -132,7 +132,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
     if (path_type == PathSegmentType::UP_SEG)
     {
         NS_LOG_FUNCTION("Received up path segment request from "
-                        << isd_number << ":" << as_number << ":" << host_addr << " between "
+                        << Isd() << ":" << As() << ":" << host_addr << " between "
                         << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " and " << GET_ISDN(dst_ia)
                         << ":" << GET_ASN(dst_ia));
         return; // TODO
@@ -141,7 +141,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
     if (path_type == PathSegmentType::DOWN_SEG)
     {
         NS_LOG_FUNCTION("Received down path segment request from "
-                        << isd_number << ":" << as_number << ":" << host_addr << " between "
+                        << Isd() << ":" << As() << ":" << host_addr << " between "
                         << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " and " << GET_ISDN(dst_ia)
                         << ":" << GET_ASN(dst_ia));
         return; // TODO
@@ -150,7 +150,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
     if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         NS_LOG_FUNCTION("non-core as received core path segment request from "
-                        << isd_number << ":" << as_number << ":" << host_addr << " between "
+                        << Isd() << ":" << As() << ":" << host_addr << " between "
                         << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " and " << GET_ISDN(dst_ia)
                         << ":" << GET_ASN(dst_ia));
         if (dst_ia == 0)
@@ -166,7 +166,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
     if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
     {
         NS_LOG_FUNCTION("Core AS received core path segment request from "
-                        << isd_number << ":" << as_number << ":" << host_addr << " between "
+                        << Isd() << ":" << As() << ":" << host_addr << " between "
                         << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " and " << GET_ISDN(dst_ia)
                         << ":" << GET_ASN(dst_ia));
         if (dst_ia == 0) // how can this happen ? 

@@ -75,6 +75,8 @@ class ScionCapableNode : public Node
     Time GetLocalTime(void) const;
 
     virtual void AdvanceLocalTime();
+    uint16_t Isd() const { return isd_number; }
+    uint16_t As() const { return as_number; }
 
   protected:
     uint16_t isd_number;
@@ -125,6 +127,7 @@ class ScionCapableNode : public Node
     }
 
     void SendScionPacket(ScionPacket* packet);
+    uint16_t RouteScionPacket( ScionPacket* packet );
     ScionPacket* CreateScionPacket(
         const Payload& payload,
         PayloadType payload_type,

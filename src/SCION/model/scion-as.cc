@@ -234,7 +234,7 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
     }
 
     std::map<BorderRouter*, std::set<uint16_t>> border_router_to_if;
-    
+
     // note: there is one BorderRouter for each AS-interface
     for (uint16_t i = 0; i < GetNDevices(); ++i)
     {
@@ -254,13 +254,14 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
                                                   border_routers_set.end());
 
     // Connect border routers to border routers
-    for (uint32_t i = 0; i < border_routers_vec.size() - 1; ++i)
+    for (uint32_t i = 0; i < border_routers_vec.size() - 1; ++i) // why skip the last one ?
     {
         BorderRouter* br1 = border_routers_vec.at(i);
         for (uint32_t j = i + 1; j < border_routers_vec.size(); ++j)
         {
             BorderRouter* br2 = border_routers_vec.at(j);
 
+            // this is duplicate work , InitializeLatencies does the same
             Time propagation_delay1 = NanoSeconds(
                 (int64_t)floor(1e6 * CalculateGreatCircleLatency((ld)br1->GetLatitude(),
                                                                  (ld)br1->GetLogitude(),
@@ -278,6 +279,7 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
                 propagation_delay1 += malicious_delay;
             }
 
+            // hack but works: seting the prop delay will increase the routers GetNDevices() interface count
             br1->AddToPropagationDelays(propagation_delay1);
             br2->AddToPropagationDelays(propagation_delay2);
 

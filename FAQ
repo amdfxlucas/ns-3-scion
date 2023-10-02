@@ -12,3 +12,6 @@ can a ScionCapableNode be connected to more than one ScionAs !? i dont think so
 
 
 Can ScionCapableNodes exchange Messages without being introduced to one another via AddToRemoteNodesInfo() first ?!
+
+
+How do ScionCapableNodes in different ASes communicate  ? thei are only indirectly connected, through borderRouters

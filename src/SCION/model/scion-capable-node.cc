@@ -184,43 +184,77 @@ ScionCapableNode::DestroyScionPacket(ScionPacket* packet)
     on_the_flight_packets.erase(packet->id);
 }
 
+
+/*!
+  \brief compute interface on which to forward a scion packet
+  \param packet a scionPacket whose destination is not located in the same AS
+  \returns the local interface on which to send the packet in order for it to reach its destination.
+           This will correspond to a BorderRouter that is connected to this Node 
+           as well as the Next Hop AS from the packets path header
+*/
+uint16_t
+ScionCapableNode::RouteScionPacket(ScionPacket* packet)
+{
+    uint64_t hopf = packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf);
+    NS_ASSERT(GET_HOP_ISD(hopf) == Isd() && GET_HOP_AS(hopf) == As());
+    bool reverse = packet->path_reversed ^ packet->path.at(packet->curr_inf)->reverse;
+
+    NS_LOG_FUNCTION(reverse << " " << packet->path_reversed << " "
+                            << packet->path.at(packet->curr_inf)->reverse);
+
+    uint16_t as_if_to_send;
+    if (reverse)
+    {
+        as_if_to_send = GET_HOP_ING_IF(hopf);
+    }
+    else
+    {
+        as_if_to_send = GET_HOP_EG_IF(hopf);
+    }
+
+    NS_LOG_FUNCTION(
+        " first hop field: isd: "
+        << GET_HOP_ISD(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf))
+        << ", as:" << GET_HOP_AS(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf))
+        << ", ing:" << GET_HOP_ING_IF(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf))
+        << ", eg:" << GET_HOP_EG_IF(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf)));
+    NS_LOG_FUNCTION("as_if_to_send: " << as_if_to_send);
+
+    auto local_if_to_send = forwarding_table_to_other_as_ifaces.at(as_if_to_send);
+    return local_if_to_send;
+}
+
+/*!
+    \param packet the ScionPacket, that shall be send.
+       It contains the destination address, as well as the path to get there.
+    \details 
+        This method first has to determine the correct local interface on which to send the packet
+        in order for it to reach its destination.
+        For an intra AS destination, the node simply queries  its 'forwarding_table_to_addresses_inside_as' table.
+        This is possible because all AS internal nodes are 'connected' initially by their ScionAs (ConnectInternalNodes() )
+    \attention dont get confused by the term 'interface'.
+                These are no real physical ones.
+                For each potential connection between two ScionCapableNodes A,B there is a connection-identifier
+                -> the interface ID
+                Note that A and B might have a different one for the same link connecting the two
+                ( for each new connection, the number is simply incremented )
+                So there are much more interface IDs than physical connections.
+                Just think of them as an index into some state of the node,
+                which determines how to handle the packet.
+
+
+*/
 void
 ScionCapableNode::SendScionPacket(ScionPacket* packet)
 {
-    NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << GetLocalAddress()
+    NS_LOG_FUNCTION("I am host " << Isd() << ":" << As() << ":" << GetLocalAddress()
                                  << ". Packet sent to " << GET_ISDN(packet->dst_ia) << ":"
                                  << GET_ASN(packet->dst_ia) << ":" << packet->dst_host);
 
     uint16_t local_if_to_send;
     if (packet->dst_ia != ia_addr)
     {
-        uint64_t hopf = packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf);
-        NS_ASSERT(GET_HOP_ISD(hopf) == isd_number && GET_HOP_AS(hopf) == as_number);
-        bool reverse = packet->path_reversed ^ packet->path.at(packet->curr_inf)->reverse;
-
-        NS_LOG_FUNCTION(reverse << " " << packet->path_reversed << " "
-                                << packet->path.at(packet->curr_inf)->reverse);
-
-        uint16_t as_if_to_send;
-        if (reverse)
-        {
-            as_if_to_send = GET_HOP_ING_IF(hopf);
-        }
-        else
-        {
-            as_if_to_send = GET_HOP_EG_IF(hopf);
-        }
-
-        NS_LOG_FUNCTION(
-            " first hop field: isd: "
-            << GET_HOP_ISD(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf)) << ", as:"
-            << GET_HOP_AS(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf)) << ", ing:"
-            << GET_HOP_ING_IF(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf))
-            << ", eg:"
-            << GET_HOP_EG_IF(packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf)));
-        NS_LOG_FUNCTION("as_if_to_send: " << as_if_to_send);
-
-        local_if_to_send = forwarding_table_to_other_as_ifaces.at(as_if_to_send);
+        local_if_to_send = RouteScionPacket( packet );
     }
     else
     {
