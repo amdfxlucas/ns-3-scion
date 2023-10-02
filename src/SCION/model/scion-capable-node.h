@@ -102,12 +102,16 @@ class ScionCapableNode : public Node
 
     Time local_time;
 
+    // maps AS interface IDs to local interface IDs of this Node, via which it is connected to that AS
     std::unordered_map<uint16_t, uint16_t> forwarding_table_to_other_as_ifaces;
+
     std::unordered_map<host_addr_t, uint16_t> forwarding_table_to_addresses_inside_as;
 
     std::unordered_map<packet_id_t, ScionPacket> on_the_flight_packets;
 
-    std::vector<std::tuple<ScionCapableNode*, uint16_t, bool>> remote_nodes_info;
+    // the i-th entry contains the remote_node and its remote_interface ID that this Node is
+    // connected with, through the local interface with index i
+    std::vector<std::tuple<ScionCapableNode*, uint16_t, bool>> remote_nodes_info; // remote_node, remote_if, remoteInSameIsdAs
 
     void Receive(uint16_t local_if, ScionPacket* packet);
     void Send(uint16_t local_if, ScionPacket* packet);

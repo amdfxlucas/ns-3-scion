@@ -356,6 +356,86 @@ InstantiateTimeServers(const YAML::Node& config, const NodeContainer& as_nodes)
     }
 }
 
+/*!
+    \details add one BorderRouter to both ScionAS, each in the same location (lat,long)
+            where both ASes have a common point of presence
+*/
+void
+InstallBorderRouters(ScionAs* from_as,
+                     ScionAs* to_as,
+                     bool only_propagation_delay,
+                     double latitude,
+                     double longitude)
+{
+    Time to_propagation_delay, from_propagation_delay;
+    Time to_transmission_delay, from_transmission_delay;
+    Time to_processing_delay, from_processing_delay;
+    Time to_processing_throughput_delay, from_processing_throughput_delay;
+
+    to_propagation_delay =
+        NanoSeconds(5); // Assuming 1m fiber optic between neighboring devices in the same location
+    from_propagation_delay = NanoSeconds(5);
+
+    if (only_propagation_delay)
+    {
+        to_transmission_delay = Time(0);
+        from_transmission_delay = Time(0);
+
+        to_processing_delay = Time(0);
+        from_processing_delay = Time(0);
+
+        to_processing_throughput_delay = Time(0);
+        from_processing_throughput_delay = Time(0);
+    }
+    else
+    {
+        to_transmission_delay =
+            PicoSeconds(20); // Per byte transmission delay assuming 400 Gbps link
+        from_transmission_delay = PicoSeconds(20);
+
+        to_processing_delay = NanoSeconds(10);
+        from_processing_delay = NanoSeconds(10);
+
+        to_processing_throughput_delay = PicoSeconds(200); // 5 Giga packets per second
+        from_processing_throughput_delay = PicoSeconds(200);
+    }
+
+    BorderRouter* to_br =
+        to_as->AddBr(latitude, longitude, to_processing_delay, to_processing_throughput_delay);
+    BorderRouter* from_br = from_as->AddBr(latitude,
+                                           longitude,
+                                           from_processing_delay,
+                                           from_processing_throughput_delay);
+
+    to_br->AddToPropagationDelays(to_propagation_delay);
+    to_br->AddToTransmissionDelays(to_transmission_delay);
+
+    from_br->AddToPropagationDelays(from_propagation_delay);
+    from_br->AddToTransmissionDelays(from_transmission_delay);
+
+    // dont get confused, no one installs NetDevices on BorderRouters
+    // no BorderRouters ScionCapableNode:: GetNDevices() gets called not Node::GetNDevices
+    // it simply returns the Number of  propagation-delays added so far
+    auto from_br_if = from_br->GetNDevices() - 1;
+    auto to_br_if = to_br->GetNDevices() -1;
+
+    to_br->AddToIfForwadingTable(to_as->GetNDevices() - 1, to_br_if );
+    from_br->AddToIfForwadingTable(from_as->GetNDevices() - 1, from_br_if );
+
+    to_br->AddToRemoteNodesInfo(from_br,
+                                from_br_if,
+                                from_as->isd_number,
+                                from_as->as_number);
+    from_br->AddToRemoteNodesInfo(to_br,
+                                  to_br_if,
+                                  to_as->isd_number,
+                                  to_as->as_number);
+}
+
+/*!
+  \details 
+            installs one borderRouter for each link ( in AS from and AS to)
+*/
 void
 InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
                          NodeContainer& as_nodes,
@@ -409,9 +489,12 @@ InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
         assert(from_as->as_number == from_alias_as_no);
 
         PointToPointHelper helper;
-        helper.Install(from_as, to_as);
+        helper.Install(from_as, to_as); // install a separate NetDevices for each Link
 
-        to_as->AddToRemoteAsInfo(from_as->GetNDevices() - 1, PeekPointer(from_as));
+        auto from_if_id = from_as->GetNDevices() - 1; // this increases as more links are added
+        auto to_if_id = to_as->GetNDevices() - 1;
+
+        to_as->AddToRemoteAsInfo(from_if_id, PeekPointer(from_as));
         to_as->interfaces_coordinates.push_back(std::pair<ld, ld>(latitude, longitude));
         to_as->coordinates_to_interfaces.insert(
             std::make_pair(std::pair<ld, ld>(latitude, longitude),
@@ -419,10 +502,10 @@ InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
 
         if (p.HasProperty("to_if_id"))
         {
-            assert((uint32_t)std::stoi(p.GetProperty("to_if_id")) == to_as->GetNDevices() - 1);
+            assert((uint32_t)std::stoi(p.GetProperty("to_if_id")) == to_if_id );
         }
 
-        from_as->AddToRemoteAsInfo(to_as->GetNDevices() - 1, PeekPointer(to_as));
+        from_as->AddToRemoteAsInfo( to_if_id, PeekPointer(to_as));
         from_as->interfaces_coordinates.push_back(std::pair<ld, ld>(latitude, longitude));
         from_as->coordinates_to_interfaces.insert(
             std::make_pair(std::pair<ld, ld>(latitude, longitude),
@@ -430,70 +513,13 @@ InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
 
         if (p.HasProperty("from_if_id"))
         {
-            assert((uint32_t)std::stoi(p.GetProperty("from_if_id")) == from_as->GetNDevices() - 1);
+            assert((uint32_t)std::stoi(p.GetProperty("from_if_id")) == from_if_id );
         }
 
         if (config["border_router"])
         {
-            Time to_propagation_delay, from_propagation_delay;
-            Time to_transmission_delay, from_transmission_delay;
-            Time to_processing_delay, from_processing_delay;
-            Time to_processing_throughput_delay, from_processing_throughput_delay;
-
-            to_propagation_delay = NanoSeconds(
-                5); // Assuming 1m fiber optic between neighboring devices in the same location
-            from_propagation_delay = NanoSeconds(5);
-
-            if (only_propagation_delay)
-            {
-                to_transmission_delay = Time(0);
-                from_transmission_delay = Time(0);
-
-                to_processing_delay = Time(0);
-                from_processing_delay = Time(0);
-
-                to_processing_throughput_delay = Time(0);
-                from_processing_throughput_delay = Time(0);
-            }
-            else
-            {
-                to_transmission_delay =
-                    PicoSeconds(20); // Per byte transmission delay assuming 400 Gbps link
-                from_transmission_delay = PicoSeconds(20);
-
-                to_processing_delay = NanoSeconds(10);
-                from_processing_delay = NanoSeconds(10);
-
-                to_processing_throughput_delay = PicoSeconds(200); // 5 Giga packets per second
-                from_processing_throughput_delay = PicoSeconds(200);
-            }
-
-            BorderRouter* to_br = to_as->AddBr(latitude,
-                                               longitude,
-                                               to_processing_delay,
-                                               to_processing_throughput_delay);
-            BorderRouter* from_br = from_as->AddBr(latitude,
-                                                   longitude,
-                                                   from_processing_delay,
-                                                   from_processing_throughput_delay);
-
-            to_br->AddToPropagationDelays(to_propagation_delay);
-            to_br->AddToTransmissionDelays(to_transmission_delay);
-
-            from_br->AddToPropagationDelays(from_propagation_delay);
-            from_br->AddToTransmissionDelays(from_transmission_delay);
-
-            to_br->AddToIfForwadingTable(to_as->GetNDevices() - 1, to_br->GetNDevices() - 1);
-            from_br->AddToIfForwadingTable(from_as->GetNDevices() - 1, from_br->GetNDevices() - 1);
-
-            to_br->AddToRemoteNodesInfo(from_br,
-                                        from_br->GetNDevices() - 1,
-                                        from_as->isd_number,
-                                        from_as->as_number);
-            from_br->AddToRemoteNodesInfo(to_br,
-                                          to_br->GetNDevices() - 1,
-                                          to_as->isd_number,
-                                          to_as->as_number);
+           InstallBorderRouters( PeekPointer(from_as),PeekPointer(to_as),
+                                 only_propagation_delay, latitude, longitude );
         }
 
         to_as->inter_as_bwds.push_back(bwd);
@@ -523,34 +549,39 @@ InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
             assert(false);
         }
 
+        assert( to_if_id == to_as->GetNDevices() - 1 ); // remove later
         to_as->interface_to_neighbor_map.insert(
-            std::make_pair(to_as->GetNDevices() - 1, from_as->as_number));
+            std::make_pair(to_if_id, from_as->as_number));
         if (to_as->interfaces_per_neighbor_as.find(from_as->as_number) !=
             to_as->interfaces_per_neighbor_as.end())
         {
+            assert( to_if_id == to_as->GetNDevices() - 1 ); // remove later
             to_as->interfaces_per_neighbor_as.at(from_as->as_number)
-                .push_back((uint16_t)to_as->GetNDevices() - 1);
+                .push_back((uint16_t)to_if_id );
         }
         else
         {
+            assert( to_if_id == to_as->GetNDevices() - 1 ); // remove later
             std::vector<uint16_t> tmp;
-            tmp.push_back((uint16_t)to_as->GetNDevices() - 1);
+            tmp.push_back((uint16_t)to_if_id );
             to_as->interfaces_per_neighbor_as.insert(std::make_pair(from_as->as_number, tmp));
             to_as->neighbors.push_back(std::make_pair(from_as->as_number, to_rel));
         }
 
+        assert( from_if_id == from_as->GetNDevices() - 1 );// remove later
+
         from_as->interface_to_neighbor_map.insert(
-            std::make_pair(from_as->GetNDevices() - 1, to_as->as_number));
+            std::make_pair(from_if_id , to_as->as_number));
         if (from_as->interfaces_per_neighbor_as.find(to_as->as_number) !=
             from_as->interfaces_per_neighbor_as.end())
         {
             from_as->interfaces_per_neighbor_as.at(to_as->as_number)
-                .push_back(from_as->GetNDevices() - 1);
+                .push_back(from_if_id);
         }
         else
         {
             std::vector<uint16_t> tmp;
-            tmp.push_back((uint16_t)from_as->GetNDevices() - 1);
+            tmp.push_back((uint16_t)from_if_id);
             from_as->interfaces_per_neighbor_as.insert(std::make_pair(to_as->as_number, tmp));
             from_as->neighbors.push_back(std::make_pair(to_as->as_number, from_rel));
         }

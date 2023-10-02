@@ -57,6 +57,15 @@ enum NeighbourRelation
 
 class BeaconServer;
 
+/*!
+  \details  A ScionAS has a collection of BorderRouters, which connect it to other ASes.
+            Also it owns all its resident ScionHosts.
+            Each ScionAS has one BeaconServer and one PathServer.
+            In ns-3 terms ScionASes are Nodes, which are connected through PointToPoint Links.
+            A ScionAS has one NetDevice for each Link to a neighbor.
+            
+
+*/
 class ScionAs : public Node
 {
   public:
@@ -83,12 +92,24 @@ class ScionAs : public Node
     std::vector<Time> latencies_between_interfaces_and_beacon_server;
     Time latency_between_path_server_and_beacon_server;
 
+    // collection of mappings from neighbor-AS-Nrs to the kind of neighbor-relation
     std::vector<std::pair<uint16_t, NeighbourRelation>> neighbors;
+
+    // if i want to reach my neighbor AS with AS-Nr 'X' I can go through each of map[ X ]'s of my local interfaces
     std::unordered_map<uint16_t, std::vector<uint16_t>> interfaces_per_neighbor_as;
+
+    // this AS's local interface if_i is connected to AS with number == map[ if_i ]
     std::unordered_map<uint16_t, uint16_t> interface_to_neighbor_map;
+
+    // geographical location of the interfaces to neighboring ASes
     std::vector<std::pair<ld, ld>> interfaces_coordinates;
+    
+    // the inverse map of interfaces_coordinates
     std::multimap<std::pair<ld, ld>, uint16_t> coordinates_to_interfaces;
+    
+    // i-th entry is a vector that stores in its j-th position the latency between AS_i <-> AS_j
     std::vector<std::vector<ld>> latencies_between_interfaces;
+    
     std::vector<int32_t> inter_as_bwds;
 
     void DoInitializations(uint32_t num_ases,

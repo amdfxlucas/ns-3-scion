@@ -44,7 +44,7 @@ Baseline::CreateInitialStaticInfoExtension(static_info_extension_t& static_info_
 {
     static_info_extension.insert(std::make_pair(StaticInfoType::LATENCY, 0));
     static_info_extension.insert(
-        std::make_pair(StaticInfoType::BW, as->inter_as_bwds.at(self_egress_if_no)));
+        std::make_pair(StaticInfoType::BW, GetAs()->inter_as_bwds.at(self_egress_if_no)));
 }
 
 void
@@ -60,8 +60,8 @@ Baseline::DisseminateBeacons(NeighbourRelation relation)
             continue;
         }
 
-        uint16_t& remote_as_no = as->neighbors.at(i).first;
-        const std::vector<uint16_t>& interfaces = as->interfaces_per_neighbor_as.at(remote_as_no);
+        uint16_t& remote_as_no = GetAs()->neighbors.at(i).first;
+        const std::vector<uint16_t>& interfaces = GetAs()->interfaces_per_neighbor_as.at(remote_as_no);
 
         for (const auto& dst_as_beacons_pair : beacon_store)
         {
@@ -117,18 +117,18 @@ Baseline::DisseminateBeacons(NeighbourRelation relation)
                     for (const auto& egress_interface_no : interfaces)
                     {
                         std::pair<uint16_t, ScionAs*> remote_as_if_pair =
-                            as->GetRemoteAsInfo(egress_interface_no);
+                            GetAs()->GetRemoteAsInfo(egress_interface_no);
 
                         uint16_t remote_ingress_if_no = remote_as_if_pair.first;
                         ScionAs* remote_as = remote_as_if_pair.second;
 
-                        ld latency = the_beacon->static_info_extension.at(StaticInfoType::LATENCY) +
-                                     as->latencies_between_interfaces
+                        ld latency = the_beacon->Latency() +
+                                     GetAs()->latencies_between_interfaces
                                          .at(LOWER_16_BITS(the_beacon->the_path.back()))
                                          .at(egress_interface_no);
                         ld bwd = the_beacon->static_info_extension.at(StaticInfoType::BW) >
-                                         (ld)as->inter_as_bwds.at(egress_interface_no)
-                                     ? (ld)as->inter_as_bwds.at(egress_interface_no)
+                                         (ld)GetAs()->inter_as_bwds.at(egress_interface_no)
+                                     ? (ld)GetAs()->inter_as_bwds.at(egress_interface_no)
                                      : the_beacon->static_info_extension.at(StaticInfoType::BW);
 
                         static_info_extension_t static_info_extension;

@@ -234,10 +234,14 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
     }
 
     std::map<BorderRouter*, std::set<uint16_t>> border_router_to_if;
-
+    
+    // note: there is one BorderRouter for each AS-interface
     for (uint16_t i = 0; i < GetNDevices(); ++i)
     {
-        BorderRouter* br = border_routers.at(i);
+        BorderRouter* br = border_routers.at(i); // BorderRouter at I-th Interface
+        // why not just: 
+        // border_router_to_if[br] = { i };
+
         if (border_router_to_if.find(br) == border_router_to_if.end())
         {
             border_router_to_if.insert(std::make_pair(br, std::set<uint16_t>()));

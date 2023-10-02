@@ -70,6 +70,9 @@ ScionCapableNode::ScheduleForSend(uint16_t local_if, ScionPacket* packet)
     Simulator::Schedule(delay, &ScionCapableNode::Send, this, local_if, packet);
 }
 
+/*!
+  \param local_if  a local Interface ID of this node
+*/
 void
 ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
 {
@@ -82,6 +85,12 @@ ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
     remote_node->ScheduleReceive(remote_if, packet, propagation_delays.at(local_if));
 }
 
+/*!
+   maps AS interface IDs to local interface IDs of this Node,
+   via which it is connected to that AS
+   \param local_if ID of an interface local to this Node.
+   \param as_if ID of the AS interface through wich this Node is connected via its Interface local_if
+*/
 void
 ScionCapableNode::AddToIfForwadingTable(uint16_t as_if, uint16_t local_if)
 {
@@ -131,6 +140,21 @@ ScionCapableNode::SetProcessingDelay(Time delay, Time throughput_delay)
     processing_throughput_delay = throughput_delay;
 }
 
+/*!
+    \details 
+
+    In void ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
+    given only the local interface ID of the interface we are about to send a message on,
+    we need a way to retrieve a pointer to the remote_node ( which is on the other side of the link)
+    in order for us to schedule the receipt of the message by it
+
+    \param remote_node pointer to remote node
+    \param remote_isd ISD that the remote node is in
+    \param remote_as AS Number of the remote Nodes AS
+    \param remote_if Interface Id of the remote_node, on which it will receive a message
+
+    the local interface ID is implicitly contained in the position of the tuple in 'remote_nodes_info' container
+*/
 void
 ScionCapableNode::AddToRemoteNodesInfo(ScionCapableNode* remote_node,
                                        uint16_t remote_if,
@@ -163,7 +187,7 @@ ScionCapableNode::DestroyScionPacket(ScionPacket* packet)
 void
 ScionCapableNode::SendScionPacket(ScionPacket* packet)
 {
-    NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << local_address
+    NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << GetLocalAddress()
                                  << ". Packet sent to " << GET_ISDN(packet->dst_ia) << ":"
                                  << GET_ASN(packet->dst_ia) << ":" << packet->dst_host);
 

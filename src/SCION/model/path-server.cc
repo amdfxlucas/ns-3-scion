@@ -34,10 +34,12 @@ NS_LOG_COMPONENT_DEFINE("PathServer");
 void
 PathServer::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time)
 {
-    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == local_address);
+    // is this request destined for us 
+    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == GetLocalAddress() );
     ScionCapableNode::ProcessReceivedPacket(local_if, packet, receive_time);
 
-    if (packet->payload_type == PayloadType::PATH_REQ_FROM_HOST && packet->src_ia == ia_addr)
+    if (packet->payload_type == PayloadType::PATH_REQ_FROM_HOST &&
+        packet->src_ia == ia_addr /* are we responsible for this host's requests */ )
     {
         PathReqFromHost path_req_from_host = packet->payload.path_req_from_host;
         ProcessLocalHostRequestForPath(path_req_from_host.seg_type,
@@ -84,27 +86,34 @@ PathServer::RegisterCorePathSegment(PathSegment& path_segment, std::string key)
         path_segment.expiration_time;
 }
 
+/*!
+  \brief register a UP PathSegment 
+  \details the segment is stored in the registerd_up_segments map 
+           under its originator and key
+          Also the Segment is reversed        
+*/
 void
 PathServer::RegisterUpPathSegment(PathSegment& path_segment, std::string key)
 {
     path_segment.reverse = true;
-    if (registered_up_segments.find(path_segment.originator) == registered_up_segments.end())
-    {
+    auto originator = path_segment.originator;
+    if (registered_up_segments.find(originator) == registered_up_segments.end())
+    {   // this originator is not yet known to us
         registered_up_segments.insert(
-            std::make_pair(path_segment.originator, new reg_path_segs_to_one_as_t()));
+            std::make_pair(originator, new reg_path_segs_to_one_as_t()));
     }
 
-    if (registered_up_segments.at(path_segment.originator)->find(key) ==
-        registered_up_segments.at(path_segment.originator)->end())
-    {
-        registered_up_segments.at(path_segment.originator)
+    if (registered_up_segments.at(originator)->find(key) ==
+        registered_up_segments.at(originator)->end())
+    {   // this key is not yet known 
+        registered_up_segments.at(originator)
             ->insert(std::make_pair(key, new PathSegment(path_segment)));
         return;
     }
 
-    registered_up_segments.at(path_segment.originator)->at(key)->initiation_time =
+    registered_up_segments.at(originator)->at(key)->initiation_time =
         path_segment.initiation_time;
-    registered_up_segments.at(path_segment.originator)->at(key)->expiration_time =
+    registered_up_segments.at(originator)->at(key)->expiration_time =
         path_segment.expiration_time;
 }
 
@@ -138,7 +147,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
         return; // TODO
     }
 
-    if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(as) == NULL)
+    if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         NS_LOG_FUNCTION("non-core as received core path segment request from "
                         << isd_number << ":" << as_number << ":" << host_addr << " between "
@@ -154,13 +163,13 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
         }
     }
 
-    if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(as) != NULL)
+    if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
     {
         NS_LOG_FUNCTION("Core AS received core path segment request from "
                         << isd_number << ":" << as_number << ":" << host_addr << " between "
                         << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " and " << GET_ISDN(dst_ia)
                         << ":" << GET_ASN(dst_ia));
-        if (dst_ia == 0)
+        if (dst_ia == 0) // how can this happen ? 
         {
             for (const auto& [registered_dst_ia, paths_to_dst_ia] : registered_core_segments)
             {

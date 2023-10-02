@@ -1,0 +1,25 @@
+there is no notion of TTL in the scion impl now
+
+
+why doesn't the PathSegment know its PathSegmentType ?!
+
+Beacon should have methods for DestinationAS and Originator() instead of c-like macros
+
+
+what is the use of PathSegment.reverse ?! it is only logged, but not considered by any decisions 
+NO, see scion-capable-node.cc line 183
+it is ultimately involved in the computation of local_if_to_send which is then used in:
+ScheduleForSend( local_if_to_send, packet )
+
+
+
+maybe add method 'isPacketForMe( ScionPacket* )' to ScionCapableNode
+that does NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == GetLocalAddress() ); this check
+
+in path-server.h the members:
+   cached_path_segs_dataset_t cached_core_segments;
+    cached_path_segs_dataset_t cached_up_segments;
+    cached_path_segs_dataset_t cached_down_segments; are not used for anything yet
+
+
+add strongTypes ! everything is uint16_t AS-Numbers, AS-Interface IDs, Node-Interface_IDs ..

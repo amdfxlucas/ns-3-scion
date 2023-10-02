@@ -48,6 +48,8 @@ class ScionHost : public ScionCapableNode
     void SendArbitraryPacket(ia_t dst_ia, host_addr_t dst_host);
 
   protected:
+
+    // these should be extracted to a separate class scionDeamon, that has a method SearchInCachedSegments(), CachePathSegment()
     cached_path_segs_dataset_t cached_up_path_segments;
     cached_path_segs_dataset_t cached_core_path_segments;
     cached_path_segs_dataset_t cached_down_path_segments;

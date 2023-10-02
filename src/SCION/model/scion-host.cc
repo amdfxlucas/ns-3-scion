@@ -141,8 +141,9 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
                                   std::vector<const PathSegment*>& path,
                                   std::vector<uint8_t>& shortcuts)
 {
+
     if (dst_ia == ia_addr)
-    {
+    {   // inter-AS messaging needs no paths
         return;
     }
 
@@ -299,7 +300,7 @@ ScionHost::SendArbitraryPacket(ia_t dst_ia, host_addr_t dst_host)
     Payload payload;
     PayloadType payload_type = PayloadType::EMPTY;
 
-    if (dst_ia == ia_addr)
+    if (dst_ia == ia_addr) // Message within same AS ? (no path needed then)
     {
         ScionPacket* packet = CreateScionPacket(payload, payload_type, dst_ia, dst_host, 0);
         SendScionPacket(packet);
