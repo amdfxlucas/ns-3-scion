@@ -719,7 +719,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
         case WAITING_S0_FULL:
             switch (framingInfo)
             {
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -732,7 +732,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 m_sdusBuffer.clear();
                 break;
 
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 m_reassemblingState = WAITING_SI_SF;
 
                 /**
@@ -751,7 +751,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 m_sdusBuffer.pop_front();
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -769,7 +769,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 if (m_sdusBuffer.size() == 1)
                 {
                     m_reassemblingState = WAITING_S0_FULL;
@@ -816,7 +816,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
         case WAITING_SI_SF:
             switch (framingInfo)
             {
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -836,7 +836,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 m_reassemblingState = WAITING_SI_SF;
 
                 /**
@@ -873,8 +873,8 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::LAST_BYTE):
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
             default:
                 /**
                  * ERROR: Transition not possible
@@ -899,7 +899,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
         case WAITING_S0_FULL:
             switch (framingInfo)
             {
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case (static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -912,7 +912,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 m_sdusBuffer.clear();
                 break;
 
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case (static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 m_reassemblingState = WAITING_SI_SF;
 
                 /**
@@ -931,7 +931,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 m_sdusBuffer.pop_front();
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case (static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -949,7 +949,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE)):
                 if (m_sdusBuffer.size() == 1)
                 {
                     m_reassemblingState = WAITING_S0_FULL;
@@ -996,7 +996,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
         case WAITING_SI_SF:
             switch (framingInfo)
             {
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -1014,7 +1014,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case ( static_cast<int>(LteRlcHeader::FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 m_reassemblingState = WAITING_SI_SF;
 
                 /**
@@ -1039,7 +1039,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
 
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::LAST_BYTE):
+            case (static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::LAST_BYTE) ):
                 m_reassemblingState = WAITING_S0_FULL;
 
                 /**
@@ -1062,7 +1062,7 @@ LteRlcUm::ReassembleAndDeliver(Ptr<Packet> packet)
                 }
                 break;
 
-            case (LteRlcHeader::NO_FIRST_BYTE | LteRlcHeader::NO_LAST_BYTE):
+            case (static_cast<int>(LteRlcHeader::NO_FIRST_BYTE) | static_cast<int>(LteRlcHeader::NO_LAST_BYTE) ):
                 if (m_sdusBuffer.size() == 1)
                 {
                     m_reassemblingState = WAITING_S0_FULL;
