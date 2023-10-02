@@ -18,8 +18,8 @@
  *          Gustavo Carneiro <gjcarneiro@gmail.com>,
  *          Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
-#ifndef SIMPLE_REF_COUNT_H
-#define SIMPLE_REF_COUNT_H
+#ifndef CORE_SIMPLE_REF_COUNT_H
+#define CORE_SIMPLE_REF_COUNT_H
 
 #include "assert.h"
 #include "default-deleter.h"
@@ -156,4 +156,4 @@ class SimpleRefCount : public PARENT
 
 } // namespace ns3
 
-#endif /* SIMPLE_REF_COUNT_H */
+#endif /* CORE_SIMPLE_REF_COUNT_H */
