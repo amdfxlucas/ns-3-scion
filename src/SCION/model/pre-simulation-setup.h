@@ -21,19 +21,6 @@
 #ifndef SCION_SIMULATOR_PRE_SIMULATION_SETUP_H
 #define SCION_SIMULATOR_PRE_SIMULATION_SETUP_H
 
-#include <istream>
-#include <omp.h>
-#include <random>
-#include <set>
-#include <yaml-cpp/yaml.h>
-
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/nstime.h"
-#include "ns3/point-to-point-channel.h"
-#include "ns3/point-to-point-helper.h"
-#include "ns3/ptr.h"
-
 #include "beaconing/baseline.h"
 #include "beaconing/beacon-server.h"
 #include "beaconing/diversity-age-based.h"
@@ -51,39 +38,59 @@
 #include "user-defined-events.h"
 #include "utils.h"
 
-namespace ns3 {
-void SetTimeResolution (const std::string &time_res_str);
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/nstime.h"
+#include "ns3/point-to-point-channel.h"
+#include "ns3/point-to-point-helper.h"
+#include "ns3/ptr.h"
 
-//rapidxml::xml_node<>* SetupTopologyFile (std::string topology_name);
+#include <istream>
+#include <omp.h>
+#include <random>
+#include <set>
+#include <yaml-cpp/yaml.h>
 
-void InstantiateASesFromTopo (rapidxml::xml_node<> *xml_root,
-                              std::map<int32_t, uint16_t> &real_to_alias_as_no,
-                              std::map<uint16_t, int32_t> &alias_to_real_as_no,
-                              ns3::NodeContainer &as_nodes, const YAML::Node &config);
+namespace ns3
+{
+void SetTimeResolution(const std::string& time_res_str);
 
-void InstantiatePathServers (const YAML::Node &config, const ns3::NodeContainer &as_nodes);
+// rapidxml::xml_node<>* SetupTopologyFile (std::string topology_name);
 
-void GetMaliciousTimeRefAndTimeServer (const ns3::NodeContainer &as_nodes, const YAML::Node &config,
-                                       std::vector<std::string> &time_reference_types,
-                                       std::vector<std::string> &time_server_types);
+void InstantiateASesFromTopo(rapidxml::xml_node<>* xml_root,
+                             std::map<int32_t, uint16_t>& real_to_alias_as_no,
+                             std::map<uint16_t, int32_t>& alias_to_real_as_no,
+                             ns3::NodeContainer& as_nodes,
+                             const YAML::Node& config);
 
-void GetTimeServiceSnapShotTypes (const ns3::NodeContainer &as_nodes, const YAML::Node &config,
-                                  std::vector<std::string> &snapshot_types);
+void InstantiatePathServers(const YAML::Node& config, const ns3::NodeContainer& as_nodes);
 
-void GetTimeServiceAlgVersions (const ns3::NodeContainer &as_nodes, const YAML::Node &config,
-                                std::vector<std::string> &alg_versions,
-                                const std::vector<std::string> &snapshot_types);
+void GetMaliciousTimeRefAndTimeServer(const ns3::NodeContainer& as_nodes,
+                                      const YAML::Node& config,
+                                      std::vector<std::string>& time_reference_types,
+                                      std::vector<std::string>& time_server_types);
 
-void InstantiateTimeServers (const YAML::Node &config, const ns3::NodeContainer &as_nodes);
+void GetTimeServiceSnapShotTypes(const ns3::NodeContainer& as_nodes,
+                                 const YAML::Node& config,
+                                 std::vector<std::string>& snapshot_types);
 
-void InstantiateLinksFromTopo (rapidxml::xml_node<> *xml_root, ns3::NodeContainer &as_nodes,
-                               const std::map<int32_t, uint16_t> &real_to_alias_as_no,
-                               const YAML::Node &config);
+void GetTimeServiceAlgVersions(const ns3::NodeContainer& as_nodes,
+                               const YAML::Node& config,
+                               std::vector<std::string>& alg_versions,
+                               const std::vector<std::string>& snapshot_types);
 
-void InitializeASesAttributes (const NodeContainer &as_nodes,
-                               std::map<int32_t, uint16_t> &real_to_alias_as_no,
-                               rapidxml::xml_node<> *xml_node, const YAML::Node &config);
+void InstantiateTimeServers(const YAML::Node& config, const ns3::NodeContainer& as_nodes);
 
-bool OnlyPropagationDelay (const YAML::Node &config);
+void InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
+                              ns3::NodeContainer& as_nodes,
+                              const std::map<int32_t, uint16_t>& real_to_alias_as_no,
+                              const YAML::Node& config);
+
+void InitializeASesAttributes(const NodeContainer& as_nodes,
+                              std::map<int32_t, uint16_t>& real_to_alias_as_no,
+                              rapidxml::xml_node<>* xml_node,
+                              const YAML::Node& config);
+
+bool OnlyPropagationDelay(const YAML::Node& config);
 } // namespace ns3
-#endif //SCION_SIMULATOR_PRE_SIMULATION_SETUP_H
+#endif // SCION_SIMULATOR_PRE_SIMULATION_SETUP_H

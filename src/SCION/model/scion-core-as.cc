@@ -20,7 +20,9 @@
  */
 
 #include "scion-core-as.h"
+
 #include "beaconing/beacon-server.h"
 
-namespace ns3 {
+namespace ns3
+{
 }

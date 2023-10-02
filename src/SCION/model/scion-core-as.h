@@ -24,18 +24,28 @@
 
 #include "scion-as.h"
 
-namespace ns3 {
+namespace ns3
+{
 
 class ScionCoreAs : public ScionAs
 {
-public:
-  ScionCoreAs (uint32_t system_id, bool parallel_scheduler, uint16_t as_number,
-                 rapidxml::xml_node<> *xml_node, const YAML::Node &config,
-                 bool malicious_border_routers, Time local_time)
-      : ScionAs (system_id, parallel_scheduler, as_number, xml_node, config,
-                  malicious_border_routers, local_time)
-  {
-  }
+  public:
+    ScionCoreAs(uint32_t system_id,
+                bool parallel_scheduler,
+                uint16_t as_number,
+                rapidxml::xml_node<>* xml_node,
+                const YAML::Node& config,
+                bool malicious_border_routers,
+                Time local_time)
+        : ScionAs(system_id,
+                  parallel_scheduler,
+                  as_number,
+                  xml_node,
+                  config,
+                  malicious_border_routers,
+                  local_time)
+    {
+    }
 };
 } // namespace ns3
-#endif //SCION_SIMULATOR_SCION_CORE_AS_H
+#endif // SCION_SIMULATOR_SCION_CORE_AS_H

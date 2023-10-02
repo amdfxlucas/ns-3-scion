@@ -20,5 +20,6 @@
 
 #include "scion-packet.h"
 
-namespace ns3 {
+namespace ns3
+{
 }

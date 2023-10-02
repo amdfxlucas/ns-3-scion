@@ -20,5 +20,6 @@
 
 #include "path-segment.h"
 
-namespace ns3 {
+namespace ns3
+{
 }

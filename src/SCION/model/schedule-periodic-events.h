@@ -21,17 +21,18 @@
 #ifndef SCION_SIMULATOR_SCHEDULE_PERIODIC_EVENTS_H
 #define SCION_SIMULATOR_SCHEDULE_PERIODIC_EVENTS_H
 
-#include <yaml-cpp/yaml.h>
-
 #include "externs.h"
 #include "scion-as.h"
 #include "scion-packet.h"
 
-namespace ns3 {
+#include <yaml-cpp/yaml.h>
 
-void SchedulePeriodicEvents (YAML::Node &config);
+namespace ns3
+{
 
-void PeriodicBeaconingCheckPoint ();
+void SchedulePeriodicEvents(YAML::Node& config);
+
+void PeriodicBeaconingCheckPoint();
 } // namespace ns3
 
-#endif //SCION_SIMULATOR_SCHEDULE_PERIODIC_EVENTS_H
+#endif // SCION_SIMULATOR_SCHEDULE_PERIODIC_EVENTS_H

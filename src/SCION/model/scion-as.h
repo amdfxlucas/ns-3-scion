@@ -20,17 +20,6 @@
 
 #ifndef SCION_SIMULATOR_SCION_AS_H
 #define SCION_SIMULATOR_SCION_AS_H
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
-#include "ns3/map-scheduler.h"
-#include "ns3/network-module.h"
-#include "ns3/node.h"
-#include "ns3/point-to-point-channel.h"
-#include "ns3/point-to-point-helper.h"
-#include "ns3/point-to-point-net-device.h"
-
 #include "beaconing/beacon.h"
 #include "border-router.h"
 #include "path-server.h"
@@ -39,124 +28,154 @@
 #include "user-defined-events.h"
 #include "utils.h"
 
-namespace ns3 {
+#include "ns3/map-scheduler.h"
+#include "ns3/network-module.h"
+#include "ns3/node.h"
+#include "ns3/point-to-point-channel.h"
+#include "ns3/point-to-point-helper.h"
+#include "ns3/point-to-point-net-device.h"
 
-enum NeighbourRelation { CORE = 0, PEER = 1, CUSTOMER = 2, PROVIDER = 3 };
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+namespace ns3
+{
+
+enum NeighbourRelation
+{
+    CORE = 0,
+    PEER = 1,
+    CUSTOMER = 2,
+    PROVIDER = 3
+};
 
 class BeaconServer;
 
 class ScionAs : public Node
 {
-public:
-  ScionAs (uint32_t system_id, bool parallel_scheduler, uint16_t as_number,
-            rapidxml::xml_node<> *xml_node, const YAML::Node &config, bool malicious_border_routers,
+  public:
+    ScionAs(uint32_t system_id,
+            bool parallel_scheduler,
+            uint16_t as_number,
+            rapidxml::xml_node<>* xml_node,
+            const YAML::Node& config,
+            bool malicious_border_routers,
             Time local_time)
-      : Node (system_id)
-  {
-    PropertyContainer p = ParseProperties (xml_node);
+        : Node(system_id)
+    {
+        PropertyContainer p = ParseProperties(xml_node);
 
-    if (p.HasProperty ("isd"))
-      {
-        isd_number = std::stoi (p.GetProperty ("isd"));
-      }
-    else
-      {
-        isd_number = 0;
-      }
+        if (p.HasProperty("isd"))
+        {
+            isd_number = std::stoi(p.GetProperty("isd"));
+        }
+        else
+        {
+            isd_number = 0;
+        }
 
-    this->as_number = as_number;
-    ia_addr = (((uint32_t) isd_number) << 16) | ((uint32_t) as_number);
+        this->as_number = as_number;
+        ia_addr = (((uint32_t)isd_number) << 16) | ((uint32_t)as_number);
 
-    this->local_time = local_time;
+        this->local_time = local_time;
 
-    this->malicious_border_routers = malicious_border_routers;
+        this->malicious_border_routers = malicious_border_routers;
 
-    if (malicious_border_routers)
-      {
-        border_routers_malicious_action =
-            config["border_router"]["malicious_action"].as<std::string> ();
-      }
-    else
-      {
-        border_routers_malicious_action = "no";
-      }
+        if (malicious_border_routers)
+        {
+            border_routers_malicious_action =
+                config["border_router"]["malicious_action"].as<std::string>();
+        }
+        else
+        {
+            border_routers_malicious_action = "no";
+        }
 
-    InstantiateBeaconServer (parallel_scheduler, xml_node, config);
-  }
+        InstantiateBeaconServer(parallel_scheduler, xml_node, config);
+    }
 
-  virtual ~ScionAs ()
-  {
-  }
+    virtual ~ScionAs()
+    {
+    }
 
-  uint16_t isd_number;
-  uint16_t as_number;
-  ia_t ia_addr;
+    uint16_t isd_number;
+    uint16_t as_number;
+    ia_t ia_addr;
 
-  Time local_time;
-  int32_t as_max_bwd;
+    Time local_time;
+    int32_t as_max_bwd;
 
-  std::vector<Time> latencies_between_hosts_and_path_server;
-  std::vector<Time> latencies_between_interfaces_and_beacon_server;
-  Time latency_between_path_server_and_beacon_server;
+    std::vector<Time> latencies_between_hosts_and_path_server;
+    std::vector<Time> latencies_between_interfaces_and_beacon_server;
+    Time latency_between_path_server_and_beacon_server;
 
-  std::vector<std::pair<uint16_t, NeighbourRelation>> neighbors;
-  std::unordered_map<uint16_t, std::vector<uint16_t>> interfaces_per_neighbor_as;
-  std::unordered_map<uint16_t, uint16_t> interface_to_neighbor_map;
-  std::vector<std::pair<ld, ld>> interfaces_coordinates;
-  std::multimap<std::pair<ld, ld>, uint16_t> coordinates_to_interfaces;
-  std::vector<std::vector<ld>> latencies_between_interfaces;
-  std::vector<int32_t> inter_as_bwds;
+    std::vector<std::pair<uint16_t, NeighbourRelation>> neighbors;
+    std::unordered_map<uint16_t, std::vector<uint16_t>> interfaces_per_neighbor_as;
+    std::unordered_map<uint16_t, uint16_t> interface_to_neighbor_map;
+    std::vector<std::pair<ld, ld>> interfaces_coordinates;
+    std::multimap<std::pair<ld, ld>, uint16_t> coordinates_to_interfaces;
+    std::vector<std::vector<ld>> latencies_between_interfaces;
+    std::vector<int32_t> inter_as_bwds;
 
-  void DoInitializations (uint32_t num_ases, rapidxml::xml_node<> *xml_node,
-                          const YAML::Node &config, bool only_propagation_delay);
+    void DoInitializations(uint32_t num_ases,
+                           rapidxml::xml_node<>* xml_node,
+                           const YAML::Node& config,
+                           bool only_propagation_delay);
 
-  void DoInitializations (uint32_t num_ases, rapidxml::xml_node<> *xml_node,
-                          const YAML::Node &config);
+    void DoInitializations(uint32_t num_ases,
+                           rapidxml::xml_node<>* xml_node,
+                           const YAML::Node& config);
 
-  std::pair<uint16_t, ScionAs *> GetRemoteAsInfo (uint16_t egress_interface_no);
+    std::pair<uint16_t, ScionAs*> GetRemoteAsInfo(uint16_t egress_interface_no);
 
-  void ReceiveBeacon (Beacon &the_beacon, uint16_t sender_as, uint16_t remote_if,
-                      uint16_t local_if);
+    void ReceiveBeacon(Beacon& the_beacon,
+                       uint16_t sender_as,
+                       uint16_t remote_if,
+                       uint16_t local_if);
 
-  void SetBeaconServer (BeaconServer *beacon_server);
+    void SetBeaconServer(BeaconServer* beacon_server);
 
-  void SetPathServer (PathServer *path_server);
+    void SetPathServer(PathServer* path_server);
 
-  BeaconServer *GetBeaconServer ();
+    BeaconServer* GetBeaconServer();
 
-  PathServer *GetPathServer ();
+    PathServer* GetPathServer();
 
-  ScionCapableNode *GetHost (host_addr_t host_addr);
+    ScionCapableNode* GetHost(host_addr_t host_addr);
 
-  uint32_t GetNHosts ();
+    uint32_t GetNHosts();
 
-  void AdvanceTime (ns3::Time advance);
+    void AdvanceTime(ns3::Time advance);
 
-  void AddHost (ScionHost *host);
+    void AddHost(ScionHost* host);
 
-  BorderRouter *AddBr (double latitude, double longitude, Time processing_delay,
-                       Time processing_throughput_delay);
+    BorderRouter* AddBr(double latitude,
+                        double longitude,
+                        Time processing_delay,
+                        Time processing_throughput_delay);
 
-  void AddToRemoteAsInfo (uint16_t remote_if, ScionAs *remote_as);
+    void AddToRemoteAsInfo(uint16_t remote_if, ScionAs* remote_as);
 
-  friend class UserDefinedEvents;
+    friend class UserDefinedEvents;
 
-protected:
-  bool malicious_border_routers;
-  std::string border_routers_malicious_action;
+  protected:
+    bool malicious_border_routers;
+    std::string border_routers_malicious_action;
 
-  BeaconServer *beacon_server;
-  PathServer *path_server = NULL;
-  std::vector<ScionHost *> hosts;
-  std::vector<BorderRouter *> border_routers;
+    BeaconServer* beacon_server;
+    PathServer* path_server = NULL;
+    std::vector<ScionHost*> hosts;
+    std::vector<BorderRouter*> border_routers;
 
-  std::vector<std::pair<uint16_t, ScionAs *>> remote_as_info;
+    std::vector<std::pair<uint16_t, ScionAs*>> remote_as_info;
 
-  void ConnectInternalNodes (bool only_propagation_delay);
-  void InitializeLatencies (bool only_propagation_delay);
+    void ConnectInternalNodes(bool only_propagation_delay);
+    void InitializeLatencies(bool only_propagation_delay);
 
-  void InstantiateBeaconServer (bool parallel_scheduler, rapidxml::xml_node<> *xml_node,
-                                  const YAML::Node &config);
+    void InstantiateBeaconServer(bool parallel_scheduler,
+                                 rapidxml::xml_node<>* xml_node,
+                                 const YAML::Node& config);
 };
 } // namespace ns3
-#endif //SCION_SIMULATOR_SCION_AS_H
+#endif // SCION_SIMULATOR_SCION_AS_H

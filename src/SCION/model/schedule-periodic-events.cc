@@ -18,8 +18,12 @@
  * Author: Seyedali Tabaeiaghdaei seyedali.tabaeiaghdaei@inf.ethz.ch
  */
 
-#include <chrono>
-#include <omp.h>
+#include "schedule-periodic-events.h"
+
+#include "beaconing/beacon-server.h"
+#include "scion-as.h"
+#include "scion-host.h"
+#include "time-server.h"
 
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -28,64 +32,62 @@
 #include "ns3/ptr.h"
 #include "ns3/simulator.h"
 
-#include "beaconing/beacon-server.h"
-#include "schedule-periodic-events.h"
-#include "scion-as.h"
-#include "scion-host.h"
-#include "time-server.h"
+#include <chrono>
+#include <omp.h>
 
-namespace ns3 {
-NS_LOG_COMPONENT_DEFINE ("GlobalScheduling");
+namespace ns3
+{
+NS_LOG_COMPONENT_DEFINE("GlobalScheduling");
 
 void
-SchedulePeriodicEvents (YAML::Node &config)
+SchedulePeriodicEvents(YAML::Node& config)
 {
-  for (uint32_t i = 0; i < nodes.GetN (); ++i)
+    for (uint32_t i = 0; i < nodes.GetN(); ++i)
     {
-      Ptr<ScionAs> node = DynamicCast<ScionAs> (nodes.Get (i));
+        Ptr<ScionAs> node = DynamicCast<ScionAs>(nodes.Get(i));
 
-      if (config["beacon_service"])
+        if (config["beacon_service"])
         {
-          node->GetBeaconServer ()->ScheduleBeaconing (
-              Time (config["beacon_service"]["last_beaconing"].as<std::string> ()));
+            node->GetBeaconServer()->ScheduleBeaconing(
+                Time(config["beacon_service"]["last_beaconing"].as<std::string>()));
         }
 
-      if (config["time_service"])
+        if (config["time_service"])
         {
-          dynamic_cast<TimeServer *> (node->GetHost (2))->ScheduleListOfAllASesRequest ();
-          dynamic_cast<TimeServer *> (node->GetHost (2))->ScheduleSnapShots ();
-          dynamic_cast<TimeServer *> (node->GetHost (2))->ScheduleTimeSync ();
+            dynamic_cast<TimeServer*>(node->GetHost(2))->ScheduleListOfAllASesRequest();
+            dynamic_cast<TimeServer*>(node->GetHost(2))->ScheduleSnapShots();
+            dynamic_cast<TimeServer*>(node->GetHost(2))->ScheduleTimeSync();
         }
     }
 
-  if (config["beacon_service"])
+    if (config["beacon_service"])
     {
-      for (Time t = Seconds (0.0);
-           t <= Time (config["beacon_service"]["last_beaconing"].as<std::string> ());
-           t += Time (config["beacon_service"]["period"].as<std::string> ()))
+        for (Time t = Seconds(0.0);
+             t <= Time(config["beacon_service"]["last_beaconing"].as<std::string>());
+             t += Time(config["beacon_service"]["period"].as<std::string>()))
         {
-          Simulator::Schedule (t + TimeStep (2), &PeriodicBeaconingCheckPoint);
+            Simulator::Schedule(t + TimeStep(2), &PeriodicBeaconingCheckPoint);
         }
     }
 }
 
 void
-PeriodicBeaconingCheckPoint ()
+PeriodicBeaconingCheckPoint()
 {
-  std::cout << "################################## "
-            << DynamicCast<ScionAs> (nodes.Get (0))->GetBeaconServer ()->GetCurrentTime ()
-            << " #########################################" << std::endl;
-  uint32_t node_number = nodes.GetN ();
+    std::cout << "################################## "
+              << DynamicCast<ScionAs>(nodes.Get(0))->GetBeaconServer()->GetCurrentTime()
+              << " #########################################" << std::endl;
+    uint32_t node_number = nodes.GetN();
 
-  // print number of connected pairs after each beaconing round
-  uint32_t all_connected_pairs = 0;
-  for (uint32_t i = 0; i < node_number; ++i)
+    // print number of connected pairs after each beaconing round
+    uint32_t all_connected_pairs = 0;
+    for (uint32_t i = 0; i < node_number; ++i)
     {
-      all_connected_pairs += DynamicCast<ScionAs> (nodes.Get (i))
-                                 ->GetBeaconServer ()
-                                 ->GetValidBeaconsCountPerDstAs ()
-                                 .size ();
+        all_connected_pairs += DynamicCast<ScionAs>(nodes.Get(i))
+                                   ->GetBeaconServer()
+                                   ->GetValidBeaconsCountPerDstAs()
+                                   .size();
     }
-  std::cout << all_connected_pairs << std::endl;
+    std::cout << all_connected_pairs << std::endl;
 }
 } // namespace ns3
