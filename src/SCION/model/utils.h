@@ -22,7 +22,7 @@
 #ifndef SCION_SIMULATOR_UTILS_H
 #define SCION_SIMULATOR_UTILS_H
 
-#include "beaconing/beacon.h"
+#include "beaconing/beacon-forward.h"
 
 #include "ns3/rapidxml.hpp"
 
@@ -31,7 +31,7 @@
 
 namespace ns3
 {
-
+// upper means 'left' lower means 'right'
 #define UPPER_16_BITS(input) ((uint16_t)((input) >> 48))
 
 #define LOWER_16_BITS(input) ((uint16_t)((input)&0x000000000000ffff))

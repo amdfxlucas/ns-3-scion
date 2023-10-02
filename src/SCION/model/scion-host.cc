@@ -166,7 +166,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         return;
     }
 
-    if (dst_in_which_cache == 0 && dynamic_cast<ScionCoreAs*>(as) != NULL &&
+    if (dst_in_which_cache == 0 && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL &&
         cached_core_path_segments.at(dst_ia)->find(ia_addr) !=
             cached_core_path_segments.at(dst_ia)->end())
     {
@@ -174,7 +174,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         return;
     }
 
-    if (dst_in_which_cache == 0 && dynamic_cast<ScionCoreAs*>(as) == NULL)
+    if (dst_in_which_cache == 0 && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         for (const auto& [core_seg_src_ia, core_path_segs] : *cached_core_path_segments.at(dst_ia))
         {
@@ -193,7 +193,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         return;
     }
 
-    if (dst_in_which_cache == 1 && dynamic_cast<ScionCoreAs*>(as) == NULL)
+    if (dst_in_which_cache == 1 && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         NS_ASSERT(cached_up_path_segments.at(dst_ia)->find(ia_addr) !=
                   cached_up_path_segments.at(dst_ia)->end());
@@ -201,7 +201,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         return;
     }
 
-    if (dst_in_which_cache == 2 && dynamic_cast<ScionCoreAs*>(as) != NULL)
+    if (dst_in_which_cache == 2 && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
     {
         if (cached_down_path_segments.at(dst_ia)->find(ia_addr) !=
             cached_down_path_segments.at(dst_ia)->end())
@@ -227,7 +227,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         return;
     }
 
-    if (dst_in_which_cache == 2 && dynamic_cast<ScionCoreAs*>(as) == NULL)
+    if (dst_in_which_cache == 2 && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         for (const auto& [down_seg_src_ia, down_path_segs] : *cached_down_path_segments.at(dst_ia))
         {
@@ -259,7 +259,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
 void
 ScionHost::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time)
 {
-    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == local_address);
+    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == GetLocalAddress());
     NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << local_address
                                  << ". Packet received from " << GET_ISDN(packet->src_ia) << ":"
                                  << GET_ASN(packet->src_ia) << ":" << packet->src_host);

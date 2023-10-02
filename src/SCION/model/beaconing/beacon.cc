@@ -22,10 +22,30 @@
 #include "beacon.h"
 
 #include "ns3/externs.h"
+#include "ns3/path-segment.h"
 #include "ns3/utils.h"
 
 namespace ns3
 {
+/*!
+
+Beacon-Path: (from originator left to destination right )
+
+link-info0          |         link-info1        |      link-info2
+                    |                           |
+send_as0 rec_as0    |      send_as1 rec_as1     |       send_as2 rec_as2
+eg_if0   ing_if0    |      eg_if1   ing_if1     |       eg_if2   ing_if2
+                    |                           |
+According Path-Segment: originator is send_as0
+
+              hop2(last hop)  |      hop(normal hop)             |                                 |
+16      16       16      16   | 16    16       16         16     |  16    16        16      16     |16    16       16      16 
+ISD     AS      in_if   eg_if | ISD    AS      in_if    eg_if    | ISD    AS      in_if   eg_if    | ISD   AS      in_if  eg_if 
+isd2  rec_as2  ing_if2  ---   | isd2  send_as2  in_if1   eg_if2  | isd1  send_as1  in_if0   eg_if1 |isd0  send_as0  ---  eg_if0
+
+
+
+*/
 void
 Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
 {
@@ -47,14 +67,14 @@ Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
 
         if (last_hop)
         {
-            as = SECOND_LOWER_16_BITS(*hop);
+            as = SECOND_LOWER_16_BITS(*hop); // corresponds to the receiver_as of the_path.back()
             ingress = LOWER_16_BITS(*hop);
             last_hop = false;
         }
         else
         {
-            as = UPPER_16_BITS(previous_hop);
-            egress = SECOND_UPPER_16_BITS(previous_hop);
+            as = UPPER_16_BITS(previous_hop);            // sender_as of previous hop
+            egress = SECOND_UPPER_16_BITS(previous_hop); // egress of previous hop
             ingress = LOWER_16_BITS(*hop);
         }
 
@@ -65,9 +85,9 @@ Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
         path_segment.hops.push_back(hop_field);
     }
 
-    uint16_t egress = SECOND_UPPER_16_BITS(previous_hop);
+    uint16_t egress = SECOND_UPPER_16_BITS(previous_hop); // previos_hop now points to path.front()
     uint16_t ingress = 0;
-    uint16_t as = UPPER_16_BITS(previous_hop);
+    uint16_t as = UPPER_16_BITS(previous_hop); // sender_as of prev_hop
     uint16_t isd = as_to_isd_map.at(as);
 
     uint64_t hop_field = (((uint64_t)isd) << 48) | (((uint64_t)as) << 32) |
@@ -75,6 +95,25 @@ Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
     path_segment.hops.push_back(hop_field);
 }
 
+/*!
+
+Beacon-Path: (from destination left to originator right )
+
+link-info0          |         link-info1        |      link-info2
+                    |                           |
+send_as0 rec_as0    |      send_as1 rec_as1     |       send_as2 rec_as2
+eg_if0   ing_if0    |      eg_if1   ing_if1     |       eg_if2   ing_if2
+                    |                           |
+According Path-Segment: originator is rec_as2
+
+              hop2(last hop)  |      hop(normal hop)             |                                 |
+16      16       16      16   | 16    16       16         16     |  16    16        16      16     |16    16         16    16 
+ISD     AS      in_if   eg_if | ISD    AS      in_if    eg_if    | ISD    AS       in_if   eg_if    | ISD   AS     in_if  eg_if 
+isd0  send_as0 eg_if0  ---    | isd0  rec_as0  eg_if1   in_if0  | isd1  rec_as1  eg_if2   in_if1   | isd2  rec_as2 ---    in_if2
+
+
+
+*/
 void
 Beacon::ExtractPathSegmentFromPullBasedBeacon(PathSegment& path_segment) const
 {

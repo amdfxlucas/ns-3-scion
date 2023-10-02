@@ -39,6 +39,11 @@
 #include <unordered_set>
 #include <vector>
 
+namespace YAML
+{
+class Node;
+}
+
 namespace ns3
 {
 
@@ -61,39 +66,7 @@ class ScionAs : public Node
             rapidxml::xml_node<>* xml_node,
             const YAML::Node& config,
             bool malicious_border_routers,
-            Time local_time)
-        : Node(system_id)
-    {
-        PropertyContainer p = ParseProperties(xml_node);
-
-        if (p.HasProperty("isd"))
-        {
-            isd_number = std::stoi(p.GetProperty("isd"));
-        }
-        else
-        {
-            isd_number = 0;
-        }
-
-        this->as_number = as_number;
-        ia_addr = (((uint32_t)isd_number) << 16) | ((uint32_t)as_number);
-
-        this->local_time = local_time;
-
-        this->malicious_border_routers = malicious_border_routers;
-
-        if (malicious_border_routers)
-        {
-            border_routers_malicious_action =
-                config["border_router"]["malicious_action"].as<std::string>();
-        }
-        else
-        {
-            border_routers_malicious_action = "no";
-        }
-
-        InstantiateBeaconServer(parallel_scheduler, xml_node, config);
-    }
+            Time local_time);
 
     virtual ~ScionAs()
     {

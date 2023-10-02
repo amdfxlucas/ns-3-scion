@@ -115,6 +115,11 @@ class ScionCapableNode : public Node
     virtual void ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time);
     void ScheduleForSend(uint16_t local_if, ScionPacket* packet);
 
+    auto GetAs()
+    {
+        return as;
+    }
+
     void SendScionPacket(ScionPacket* packet);
     ScionPacket* CreateScionPacket(
         const Payload& payload,

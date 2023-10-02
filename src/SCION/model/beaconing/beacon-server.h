@@ -40,9 +40,10 @@ namespace ns3
 #define MAX_BEACONS_TO_SEND 5
 
 class ScionAs;
-
+using dstAS_t = uint16_t;
+using pathLen_t = uint16_t;
 typedef std::unordered_set<Beacon*> beacons_with_equal_length;
-typedef std::map<uint16_t, beacons_with_equal_length> beacons_with_same_dst_as;
+typedef std::map<pathLen_t, beacons_with_equal_length> beacons_with_same_dst_as;
 typedef std::pair<Time, uint16_t> beaconing_timing_params;
 
 class BeaconServer
@@ -51,49 +52,7 @@ class BeaconServer
     BeaconServer(ScionAs* as,
                  bool parallel_scheduler,
                  rapidxml::xml_node<>* xml_node,
-                 const YAML::Node& config)
-        : as(as),
-          parallel_scheduler(parallel_scheduler),
-          beaconing_period(Time(config["beacon_service"]["period"].as<std::string>())),
-          expiration_period(Time(config["beacon_service"]["expiration_period"].as<std::string>())
-                                .ToInteger(Time::MIN)),
-          last_beaconing_event_time(
-              Time(config["beacon_service"]["last_beaconing"].as<std::string>()))
-    {
-        non_requested_pull_based_beacon_container.resize(2);
-        PropertyContainer p = ParseProperties(xml_node);
-        if (p.HasProperty("dirty_energy_ratio"))
-        {
-            dirty_energy_ratio = std::stod(p.GetProperty("dirty_energy_ratio"));
-        }
-
-        if (p.HasProperty("sun_energy_ratio"))
-        {
-            sun_energy_ratio = std::stod(p.GetProperty("sun_energy_ratio"));
-        }
-
-        if (config["beacon_service"]["read_beacons_directory"])
-        {
-            file_to_read_beacons =
-                config["beacon_service"]["read_beacons_directory"].as<std::string>() + "beacons_" +
-                std::to_string(as->as_number) + ".json";
-        }
-        else
-        {
-            file_to_read_beacons = "none";
-        }
-
-        if (config["beacon_service"]["write_beacons_directory"])
-        {
-            file_to_write_beacons =
-                config["beacon_service"]["write_beacons_directory"].as<std::string>() + "beacons_" +
-                std::to_string(as->as_number) + ".json";
-        }
-        else
-        {
-            file_to_write_beacons = "none";
-        }
-    }
+                 const YAML::Node& config);
 
     virtual void DoInitializations(uint32_t num_ases,
                                    rapidxml::xml_node<>* xml_node,
@@ -227,6 +186,7 @@ class BeaconServer
                       bool path_exists,
                       bool existing_path_valid,
                       Beacon* beacon_to_replace);
+    void InsertToBeaconStoreImpl(uint16_t dst_as, Beacon* to_insert_beacon);
 
     void IncrementValidBeaconsCount(uint16_t dst_as);
 

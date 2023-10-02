@@ -198,9 +198,12 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                 {
                     if (the_beacon->is_valid)
                     {
-                        assert(UPPER_16_BITS(the_beacon->the_path.at(0)) == dst_alias_as_no);
+                        assert(
+                            UPPER_16_BITS(the_beacon->the_path.at(0)) ==
+                            dst_alias_as_no); // beacon->Originator() or beacon->DestinationAS() ?!
 
-                        uint16_t first_br = LOWER_16_BITS(the_beacon->the_path.back());
+                        uint16_t first_br =
+                            LOWER_16_BITS(the_beacon->the_path.back()); // ingress_if
                         std::pair<double, double> first_br_coordinates =
                             src_alias_as_no->interfaces_coordinates.at(first_br);
                         double latency_from_probe_to_first_hop =
@@ -208,14 +211,13 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                                                         probe_long,
                                                         first_br_coordinates.first,
                                                         first_br_coordinates.second);
-                        if (the_beacon->static_info_extension.at(StaticInfoType::LATENCY) +
-                                latency_from_probe_to_first_hop <
-                            min_latency_to_dst_as)
+                        if (auto current_beacon_latency =
+                                the_beacon->Latency() + latency_from_probe_to_first_hop;
+                            current_beacon_latency < min_latency_to_dst_as)
                         {
-                            min_latency_to_dst_as =
-                                the_beacon->static_info_extension.at(StaticInfoType::LATENCY) +
-                                latency_from_probe_to_first_hop;
-                            last_br = SECOND_UPPER_16_BITS(the_beacon->the_path.at(0));
+                            min_latency_to_dst_as = current_beacon_latency;
+
+                            last_br = SECOND_UPPER_16_BITS(the_beacon->the_path.at(0)); // egress_if
                             selected_path = &the_beacon->the_path;
                         }
                     }
@@ -224,6 +226,8 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
 
             double min_overall_latency = std::numeric_limits<double>::max();
             std::pair<double, double> selected_instance_coordinates;
+            // location of an instance of the selected X-root-nameserver's that is nearest to the
+            // current probe
 
             rapidxml::xml_node<>* sites_node = dns_root_node->first_node("Sites");
             rapidxml::xml_node<>* curr_site = sites_node->first_node("item");

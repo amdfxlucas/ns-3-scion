@@ -22,7 +22,10 @@
 #ifndef SCION_SIMULATOR_BEACON_H
 #define SCION_SIMULATOR_BEACON_H
 
-#include "ns3/path-segment.h"
+// #include "ns3/path-segment.h"
+#include "beacon-forward.h"
+
+#include "ns3/utils.h"
 
 #include <set>
 #include <string>
@@ -32,11 +35,14 @@
 
 namespace ns3
 {
+class PathSegment;
 
 #define BEACON_HEADER_SIZE 86
 #define BEACON_HOP_SIZE 132
-#define ORIGINATOR(beacon) (UPPER_16_BITS(beacon.the_path.front()))
+#define ORIGINATOR(beacon)                                                                         \
+    (UPPER_16_BITS(beacon.the_path.front())) // sender_as of first link-info in path
 #define ORIGINATOR_PTR(beacon) (UPPER_16_BITS(beacon->the_path.front()))
+// Also  sender_as of first link-info in path ?!
 #define DST_AS(beacon)                                                                             \
     (beacon.beacon_direction == BeaconDirectionT::PULL_BASED                                       \
          ? beacon.optimization_target->target_as                                                   \
@@ -47,12 +53,11 @@ namespace ns3
          ? beacon->optimization_target->target_as                                                  \
          : UPPER_16_BITS(beacon->the_path.front()))
 
-typedef long double ld;
+typedef uint64_t link_information; // sender_as    eg_if     receiver_as    ing_if
+                                   // <-16bit->  <-16bit->   <--16bit-->    <-16bit->
+                                   // UPPER_16   SECOND_UPPER  SECOND_LOWER   LOWER_16
 
-typedef uint64_t link_information; // sender_as   eg_if   receiver_as   ing_if
-                                   // <-16bit-> <-16bit-> <--16bit-->  <-16bit->
-
-typedef std::vector<link_information> path;
+typedef std::vector<link_information> path; // in increasing order from fst to last hop
 typedef std::vector<uint16_t> isd_path;
 
 enum StaticInfoType
@@ -162,6 +167,23 @@ struct Beacon
           the_isd_path(isdp)
 
     {
+    }
+
+    float Latency() const
+    {
+        return static_info_extension.at(StaticInfoType::LATENCY);
+    }
+
+    // why are Destination and Originator() the same computation ?!
+    auto DestinationAS() const
+    {
+        return (beacon_direction == BeaconDirectionT::PULL_BASED ? optimization_target->target_as
+                                                                 : UPPER_16_BITS(the_path.front()));
+    }
+
+    auto Originator() const
+    {
+        return UPPER_16_BITS(the_path.front());
     }
 
     void ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const;
