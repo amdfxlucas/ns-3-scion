@@ -47,6 +47,7 @@ class BorderRouter : public ScionCapableNode
     }
 
   private:
+    void DeliverPacketLocally( ScionPacket* packet );
     void ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time) override;
 };
 } // namespace ns3

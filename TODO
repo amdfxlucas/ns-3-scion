@@ -42,3 +42,11 @@ One has to take care to always call AddToTransmissionDelays and AddToPropagation
 
 
 maybe it is a good idea to rename ScionCapableNode Interface IDs into something more abstract, like channelID or logical/virtual -interface ID , ForwardingStateIndex that emphasizes that these have nothing to do with physical interfaces 
+
+
+
+remote und local interfaces sollten auch eine eigene klasse sein (z.B. NodeInterface ).
+So ist checking möglich, dass ein Host z.b. dieses interface überhaupt allokiert hat, auf dem er eine nachricht erhalten soll ( bzw. dass von einem anderen Node einfach gescheduled wurde )
+
+AS interfaces würden einen eigenen strongType für ASInterfaces bekommen,
+so kann man sie sauber von NodeInterfaces trennen

@@ -133,6 +133,11 @@ ScionAs::DoInitializations(uint32_t num_ases,
     beacon_server->DoInitializations(num_ases, xml_node, config);
 }
 
+/*!
+ \param egress_interface_no  egress Interface Number of local AS
+ \returns Remote AS and its ingress interface No with which
+     its is connected to this AS's passed egress_interface
+*/
 std::pair<uint16_t, ScionAs*>
 ScionAs::GetRemoteAsInfo(uint16_t egress_interface_no)
 {
@@ -505,6 +510,11 @@ ScionAs::InitializeLatencies(bool only_propagation_delay)
     }
 }
 
+/*
+  better add egress_if of local AS as an explicit parameter here.
+  remote_as_info[ egress_if_id ] == (remoteAS, remoteAS-ingress-id )
+  Or at least return the newly allocated egress_interface from this function
+*/
 void
 ScionAs::AddToRemoteAsInfo(uint16_t remote_if, ScionAs* remote_as)
 {

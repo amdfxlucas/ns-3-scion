@@ -47,15 +47,21 @@ Baseline::CreateInitialStaticInfoExtension(static_info_extension_t& static_info_
         std::make_pair(StaticInfoType::BW, GetAs()->inter_as_bwds.at(self_egress_if_no)));
 }
 
+/*!
+    \brief Disseminate Beacons to all neighboring ASes with which
+       this AS has the specified NeighbourRelation
+    \param relation NeighbourRelation for neighbors which if they have this relation with us,
+      get Beacons sent
+*/
 void
 Baseline::DisseminateBeacons(NeighbourRelation relation)
 {
-    uint32_t neighbors_cnt = as->neighbors.size();
+    uint32_t neighbors_cnt = GetAs()->neighbors.size();
     omp_set_num_threads(num_core);
 #pragma omp parallel for
-    for (uint32_t i = 0; i < neighbors_cnt; ++i)
+    for (uint32_t i = 0; i < neighbors_cnt; ++i) // do range for loop over neighbors here
     {
-        if (as->neighbors.at(i).second != relation)
+        if (GetAs()->neighbors.at(i).second != relation)
         {
             continue;
         }

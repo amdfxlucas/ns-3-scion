@@ -61,6 +61,9 @@ ScionCapableNode::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, 
     // Other tasks should be done in derived classes
 }
 
+/*!
+  \param local_if  a local Interface ID of this node on which to send the packet
+*/
 void
 ScionCapableNode::ScheduleForSend(uint16_t local_if, ScionPacket* packet)
 {
@@ -71,7 +74,9 @@ ScionCapableNode::ScheduleForSend(uint16_t local_if, ScionPacket* packet)
 }
 
 /*!
-  \param local_if  a local Interface ID of this node
+  \param local_if  a local Interface ID of this node on which to send the packet
+                it is currently used to  look up the remote-node and its interface-id ( on which it will receive the msg)
+                in the nodes forwarding Table (remote_nodes_info)
 */
 void
 ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
@@ -79,8 +84,10 @@ ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
     AdvanceLocalTime();
     NS_LOG_FUNCTION(packet);
     transmission_queues_lengths.at(local_if) -= packet->size;
+
     ScionCapableNode* remote_node = std::get<0>(remote_nodes_info.at(local_if));
     uint16_t remote_if = std::get<1>(remote_nodes_info.at(local_if));
+    
     ModifyPktUponSend(packet);
     remote_node->ScheduleReceive(remote_if, packet, propagation_delays.at(local_if));
 }

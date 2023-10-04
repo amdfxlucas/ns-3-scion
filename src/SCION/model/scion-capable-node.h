@@ -77,6 +77,7 @@ class ScionCapableNode : public Node
     virtual void AdvanceLocalTime();
     uint16_t Isd() const { return isd_number; }
     uint16_t As() const { return as_number; }
+    uint16_t Ia() const {return ia_addr;}
 
   protected:
     uint16_t isd_number;
