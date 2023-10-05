@@ -19,11 +19,12 @@
  *         Christelle Gloor  christelle.gloor@inf.ethz.ch
  */
 
-#include "model/externs.h"
+// #include "model/externs.h"
+#include "ns3/scion-simulation-context.h"
 #include "model/post-simulation-evaluations.h"
 #include "model/pre-simulation-setup.h"
-#include "model/schedule-periodic-events.h"
-#include "model/user-defined-events.h"
+// #include "model/schedule-periodic-events.h"
+// #include "model/user-defined-events.h"
 #include "model/utils.h"
 
 #include "ns3/core-module.h"
@@ -36,12 +37,17 @@
 #include <omp.h>
 #include <set>
 #include <yaml-cpp/yaml.h>
+//#include "ns3/cppki.pb.h"
+#include "control_plane/v1/cppki.pb.h"
+
 
 using namespace ns3;
 
 int
 main(int argc, char* argv[])
 {
+    proto::control_plane::v1::ChainsRequest creq;
+
     if (argc != 2)
     {
         std::cerr << "Please pass the config file location as the argument." << std::endl;
@@ -94,8 +100,6 @@ main(int argc, char* argv[])
 
     Time simulation_end_time = Time(config["simulation_duration"].as<std::string>());
 
-    num_core = config["NUM_CORE"].as<uint32_t>();
-
     std::ifstream fin(topology_file.c_str());
     std::ostringstream sstr;
     sstr << fin.rdbuf();
@@ -117,32 +121,33 @@ main(int argc, char* argv[])
 
     std::ofstream out(out_path);
     std::cout.rdbuf(out.rdbuf());
+    auto& simContext = SCIONSimulationContext::FromConfig(config);
 
-    InstantiateASesFromTopo(xml_root, real_to_alias_as_no, alias_to_real_as_no, nodes, config);
+    simContext.InstantiateASesFromTopo(xml_root);
+     simContext.SetNumCores( config["NUM_CORE"].as<uint32_t>() );
 
     if (config["path_service"])
     {
-        InstantiatePathServers(config, nodes);
+        simContext.InstantiatePathServers();
     }
 
     if (config["time_service"])
     {
-        InstantiateTimeServers(config, nodes);
+        simContext.InstantiateTimeServers();
     }
 
-    InstantiateLinksFromTopo(xml_root, nodes, real_to_alias_as_no, config);
-    InitializeASesAttributes(nodes, real_to_alias_as_no, xml_root, config);
+    simContext.InstantiateLinksFromTopo(xml_root);
+    simContext.InitializeASesAttributes( xml_root);
 
-    SchedulePeriodicEvents(config);
-    UserDefinedEvents user_defined_events(config, nodes, real_to_alias_as_no, alias_to_real_as_no);
+    simContext.Scheduling().SchedulePeriodicEvents();
+    // UserDefinedEvents user_defined_events(config);
 
     Simulator::Stop(simulation_end_time);
     Simulator::Run();
 
-    PostSimulationEvaluations* eval =
-        new PostSimulationEvaluations(config, nodes, real_to_alias_as_no, alias_to_real_as_no);
+   
 
-    eval->DoFinalEvaluations();
+    simContext.Evaluations().DoFinalEvaluations();
 
     Simulator::Destroy();
 

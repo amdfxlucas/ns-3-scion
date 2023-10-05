@@ -130,10 +130,10 @@ class TimeServer : public ScionHost
 
         local_time = TimeStep(0);
         real_time_of_last_time_advance = TimeStep(0);
-        set_of_all_core_ases.insert(ia_addr);
+        set_of_all_core_ases.insert(Ia());
 
         set_of_disjoint_paths_file = time_service_output_path + "set_of_disjoint_path_TS_" +
-                                     std::to_string(ia_addr) + ".json";
+                                     std::to_string(Ia()) + ".json";
 
         std::random_device rd;
         std::uniform_int_distribution<int64_t> dist(-std::abs(max_drift_per_day.GetTimeStep()),
@@ -160,6 +160,7 @@ class TimeServer : public ScionHost
             }
         }
     }
+    void SetReferenceTimeType( ReferenceTimeType refTimeType ){ reference_time_type = refTimeType; }
 
     void ScheduleListOfAllASesRequest();
     void ScheduleTimeSync();
@@ -234,8 +235,14 @@ class TimeServer : public ScionHost
     std::unordered_map<ia_t, std::multiset<int64_t>> poff;
 
     std::unordered_map<ia_t, std::unordered_set<const PathSegment*>> set_of_selected_paths;
-
+    
+public:
     Time GetReferenceTime();
+    void SetPathSelection( const std::string& newPathSelection ){path_selection= newPathSelection; }
+    void SetNofPathsForGlobSync( auto nr ){ number_of_paths_to_use_for_global_sync = nr; }
+    const auto& GetSetOfSelectedPaths() const{return set_of_selected_paths;}
+    void SetAffectedByMalicious( bool isAffected){ affected_by_malicious_ases = isAffected;}
+    bool IsAffectedByMalicous()const{return affected_by_malicious_ases;}
 
     Time GetMaxDrift(Time duration);
 

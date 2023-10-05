@@ -169,6 +169,8 @@ class PacketMetadata
      * \brief Enable the packet metadata checking
      */
     static void EnableChecking();
+    static void Disable();
+    static void DisableChecking();
 
     /**
      * \brief Constructor

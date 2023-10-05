@@ -255,7 +255,7 @@ unset(below_minimum_msg)
 # Set compiler options and get command to force unused function linkage (useful
 # for libraries)
 set(CXX_UNSUPPORTED_STANDARDS 98 11 14)
-set(CMAKE_CXX_STANDARD_MINIMUM 20)
+set(CMAKE_CXX_STANDARD_MINIMUM 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(LIB_AS_NEEDED_PRE)
@@ -440,7 +440,7 @@ macro(process_options)
 
   # Enable examples if activated via command line (NS3_TESTS) or ns3rc config
   # file
-  set(ENABLE_TESTS OFF)
+  set(ENABLE_TESTS ON)
   if(${NS3_TESTS} OR ${ns3rc_tests_enabled})
     set(ENABLE_TESTS ON)
     enable_testing()

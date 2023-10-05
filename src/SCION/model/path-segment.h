@@ -27,8 +27,8 @@
 
 namespace ns3
 {
-typedef uint32_t ia_t;
-typedef uint64_t src_dst_ia_t;
+typedef uint32_t ia_t;  // i thought IA would be 64 bit ?! 16 for isd and 48 for AS 
+// typedef uint64_t src_dst_ia_t;  // this was never used anywhere
 
 #define MAKE_IA(isd, as) ((((uint32_t)isd) << 16) | ((uint32_t)as))
 #define GET_ISDN(input) ((uint16_t)((input) >> 16))
@@ -66,7 +66,7 @@ struct PathSegment
 
     bool reverse;
 
-    std::vector<uint64_t> hops;
+    std::vector<uint64_t> hops; // isnt this link_informaation_t here ?!
 
     PathSegment()
     {

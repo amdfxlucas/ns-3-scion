@@ -88,7 +88,7 @@ class OnDemandOptimization : public BeaconServer
                                OptimizationTarget(target_id,
                                                   optimization_criteria,
                                                   optimization_direction,
-                                                  as->as_number,
+                                                  as->AS(),
                                                   group_id,
                                                   no_beacons,
                                                   NULL)));

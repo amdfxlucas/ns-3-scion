@@ -22,6 +22,38 @@
 
 #include "time-server.h"
 
+
+template <int N>
+struct my_placeholder
+{
+    static my_placeholder ph;
+};
+
+template <int N>
+my_placeholder<N> my_placeholder<N>::ph;
+
+namespace std
+{
+template <int N>
+struct is_placeholder<::my_placeholder<N>> : std::integral_constant<int, N>
+{
+};
+} // namespace std
+
+template <class R, class... Types, class U, int... indices>
+std::function<R(Types...)>
+BindFactory(R (U::*f)(Types...), U* val, std::integer_sequence<int, indices...> /*seq*/)
+{
+    return std::bind(f, val, my_placeholder<indices + 1>::ph...);
+}
+
+template <class R, class... Types, class U>
+std::function<R(Types...)>
+FunctionFactory(R (U::*f)(Types...), U* val)
+{
+    return BindFactory(f, val, std::make_integer_sequence<int, sizeof...(Types)>());
+}
+
 namespace ns3
 {
 void
@@ -153,24 +185,24 @@ UserDefinedEvents::SendPacketBatch(std::string src_isd_number,
 void
 UserDefinedEvents::TimeReferencesDown()
 {
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* scion_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto scion_as = m_ctx.nodes.at(i);
         TimeServer* time_server = dynamic_cast<TimeServer*>(scion_as->GetHost(2));
 
-        time_server->reference_time_type = ReferenceTimeType::OFF;
+        time_server->SetReferenceTimeType( ReferenceTimeType::OFF );
     }
 }
 
 void
 UserDefinedEvents::TimeReferencesUp()
 {
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* scion_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto scion_as = m_ctx.nodes.at(i);
         TimeServer* time_server = dynamic_cast<TimeServer*>(scion_as->GetHost(2));
 
-        time_server->reference_time_type = ReferenceTimeType::ON;
+        time_server->SetReferenceTimeType( ReferenceTimeType::ON );
     }
 }
 } // namespace ns3

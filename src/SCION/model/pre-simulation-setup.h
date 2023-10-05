@@ -27,17 +27,18 @@
 #include "beaconing/green-beaconing.h"
 #include "beaconing/latency-optimized-beaconing.h"
 #include "beaconing/scionlab-algo.h"
-#include "externs.h"
+
 #include "path-server.h"
-#include "post-simulation-evaluations.h"
-#include "schedule-periodic-events.h"
+// #include "post-simulation-evaluations.h"
+
 #include "scion-as.h"
 #include "scion-core-as.h"
 #include "scion-host.h"
 #include "time-server.h"
-#include "user-defined-events.h"
-#include "utils.h"
+// #include "user-defined-events.h"
+// #include "utils.h"
 
+/*
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/nstime.h"
@@ -48,8 +49,9 @@
 #include <istream>
 #include <omp.h>
 #include <random>
-#include <set>
+#include <set>*/
 #include <yaml-cpp/yaml.h>
+#include <string>
 
 namespace ns3
 {
@@ -57,39 +59,18 @@ void SetTimeResolution(const std::string& time_res_str);
 
 // rapidxml::xml_node<>* SetupTopologyFile (std::string topology_name);
 
-void InstantiateASesFromTopo(rapidxml::xml_node<>* xml_root,
-                             std::map<int32_t, uint16_t>& real_to_alias_as_no,
-                             std::map<uint16_t, int32_t>& alias_to_real_as_no,
-                             ns3::NodeContainer& as_nodes,
-                             const YAML::Node& config);
+void
+InstallBorderRouters(ScionAs* from_as,
+                     ScionAs* to_as,
+                     bool only_propagation_delay,
+                     double latitude,
+                     double longitude);
 
-void InstantiatePathServers(const YAML::Node& config, const ns3::NodeContainer& as_nodes);
+// void InstantiatePathServers(const YAML::Node& config, const ns3::NodeContainer& as_nodes);
 
-void GetMaliciousTimeRefAndTimeServer(const ns3::NodeContainer& as_nodes,
-                                      const YAML::Node& config,
-                                      std::vector<std::string>& time_reference_types,
-                                      std::vector<std::string>& time_server_types);
 
-void GetTimeServiceSnapShotTypes(const ns3::NodeContainer& as_nodes,
-                                 const YAML::Node& config,
-                                 std::vector<std::string>& snapshot_types);
 
-void GetTimeServiceAlgVersions(const ns3::NodeContainer& as_nodes,
-                               const YAML::Node& config,
-                               std::vector<std::string>& alg_versions,
-                               const std::vector<std::string>& snapshot_types);
 
-void InstantiateTimeServers(const YAML::Node& config, const ns3::NodeContainer& as_nodes);
-
-void InstantiateLinksFromTopo(rapidxml::xml_node<>* xml_root,
-                              ns3::NodeContainer& as_nodes,
-                              const std::map<int32_t, uint16_t>& real_to_alias_as_no,
-                              const YAML::Node& config);
-
-void InitializeASesAttributes(const NodeContainer& as_nodes,
-                              std::map<int32_t, uint16_t>& real_to_alias_as_no,
-                              rapidxml::xml_node<>* xml_node,
-                              const YAML::Node& config);
 
 bool OnlyPropagationDelay(const YAML::Node& config);
 } // namespace ns3

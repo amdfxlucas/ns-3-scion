@@ -20,6 +20,8 @@
 
 #ifndef SCION_SIMULATOR_SCION_AS_H
 #define SCION_SIMULATOR_SCION_AS_H
+
+#include "ns3/scion-types.h"
 #include "beaconing/beacon.h"
 #include "border-router.h"
 #include "path-server.h"
@@ -47,6 +49,8 @@ class Node;
 namespace ns3
 {
 
+class SCIONSimulationContext;
+
 enum NeighbourRelation
 {
     CORE = 0,
@@ -56,6 +60,7 @@ enum NeighbourRelation
 };
 
 class BeaconServer;
+class BorderRouterApplication;
 
 /*!
   \details  A ScionAS has a collection of BorderRouters, which connect it to other ASes.
@@ -66,9 +71,11 @@ class BeaconServer;
             
 
 */
-class ScionAs : public Node
+class ScionAs
 {
   public:
+  // why do scionASes dont no their isd / IA ?!
+  // but only an alias AS -> they do! They load it as a Property from the xml_node
     ScionAs(uint32_t system_id,
             bool parallel_scheduler,
             uint16_t as_number,
@@ -80,10 +87,13 @@ class ScionAs : public Node
     virtual ~ScionAs()
     {
     }
-
-    uint16_t isd_number;
-    uint16_t as_number;
-    ia_t ia_addr;
+    auto AS() const {return as_number;}
+    auto ISD() const {return isd_number;}
+    auto IA()const{return ia_addr;}
+    
+    auto AllocateAsInterface(){ return m_interfaces++;}
+    auto GetNInterfaces()const{return m_interfaces; }
+    
 
     Time local_time;
     int32_t as_max_bwd;
@@ -93,19 +103,21 @@ class ScionAs : public Node
     Time latency_between_path_server_and_beacon_server;
 
     // collection of mappings from neighbor-AS-Nrs to the kind of neighbor-relation
-    std::vector<std::pair<uint16_t, NeighbourRelation>> neighbors;
+    std::vector<std::pair<AS_t, NeighbourRelation>> neighbors;
 
     // if i want to reach my neighbor AS with AS-Nr 'X' I can go through each of map[ X ]'s of my local interfaces
-    std::unordered_map<uint16_t, std::vector<uint16_t>> interfaces_per_neighbor_as;
+    std::unordered_map<AS_t, std::vector< ASIFID_t> > interfaces_per_neighbor_as;
 
     // this AS's local interface if_i is connected to AS with number == map[ if_i ]
-    std::unordered_map<uint16_t, uint16_t> interface_to_neighbor_map;
+    std::unordered_map<ASIFID_t, AS_t> interface_to_neighbor_map;
 
     // geographical location of the interfaces to neighboring ASes
+    // the AS-interface with ID 'i' has coordinates interfaces_coordinates[i]
+    // Because interface IDs can share geographical locations, this list contains duplicates
     std::vector<std::pair<ld, ld>> interfaces_coordinates;
     
     // the inverse map of interfaces_coordinates
-    std::multimap<std::pair<ld, ld>, uint16_t> coordinates_to_interfaces;
+    std::multimap<std::pair<ld, ld>, ASIFID_t> coordinates_to_interfaces;
     
     // i-th entry is a vector that stores in its j-th position the latency between AS_i <-> AS_j
     std::vector<std::vector<ld>> latencies_between_interfaces;
@@ -121,12 +133,8 @@ class ScionAs : public Node
                            rapidxml::xml_node<>* xml_node,
                            const YAML::Node& config);
 
-    std::pair<uint16_t, ScionAs*> GetRemoteAsInfo(uint16_t egress_interface_no);
+    std::pair<ASIFID_t, ScionAs*> GetRemoteAsInfo(ASIFID_t egress_interface_no);
 
-    void ReceiveBeacon(Beacon& the_beacon,
-                       uint16_t sender_as,
-                       uint16_t remote_if,
-                       uint16_t local_if);
 
     void SetBeaconServer(BeaconServer* beacon_server);
 
@@ -149,11 +157,54 @@ class ScionAs : public Node
                         Time processing_delay,
                         Time processing_throughput_delay);
 
+   /* BorderRouterApplication* AddBorderRouterApplication( double latitude, double longitude,
+                                                         Time processing_delay,
+                                                          Time  processing_throughput_delay);    */                    
+
     void AddToRemoteAsInfo(uint16_t remote_if, ScionAs* remote_as);
 
     friend class UserDefinedEvents;
 
+
+    // hier bloß ein paar brainstorming idden
+    /*
+    std::vector<Address> BorderRouterAddresses() const
+    oder   std::vector<L4Address> um ports zu haben
+    oder muss es std:: vector< std::pair< Address, IFID_t > > sein,
+     damit zu jeder addresse das entsprechende egress Interface des AS mit angegeben ist
+     (denn das ist ja letztendlich dass, was in den hopFields der pfade steht)
+
+    die information über underlay addressen hat der pathserver nicht (im moment jedenfalls)
+    Bleibt also vorerst nur das AS, dass diese information vorhalten muss
+    um den SCIONHostContext zu construieren
+
+     -------------------------------------------------------------
+    SCIONHostContext& GetHostContext()   
+    
+    - HostContext enthält aufjedenfall pointer zum pathsever des AS
+      und vielleicht auch pointer zum AS selber
+
+    das AS scheint die geeignete Stelle um sich den ScionHostKontext abzuholen, 
+    um ihn in SCIONNodes zu aggregieren
+
+    z.B.: 
+      NodeContainer  nodes;  // hier drinn sind die Bewohner des AS,
+                            // die aus dem IntraDomainTopofile geladen wurden
+       SCIONStackHelper  helper( pointer-to-AS )
+      helper.Install(nodes);  // richtet auf allen nodes einen ScionHostContext passend zum AS ein
+                            // und befähigt die nodes damit SCIONUdpSockets zu benutzen
+                            // ( diese gebrauchen den HostContext um sich über den darin enthaltenen Daemon
+                                mit pfaden zu versorgen , damit sie gültige SCIONHeader ausfüllen können )
+
+
+    */
+
   protected:
+    uint16_t m_interfaces=0;
+    uint16_t isd_number;
+    uint16_t as_number;
+    ia_t ia_addr;
+
     bool malicious_border_routers;
     std::string border_routers_malicious_action;
 
@@ -162,7 +213,10 @@ class ScionAs : public Node
     std::vector<ScionHost*> hosts;
     std::vector<BorderRouter*> border_routers;
 
-    std::vector<std::pair<uint16_t, ScionAs*>> remote_as_info;
+
+    std::map< ASIFID_t , Node* > m_border_router_for_interface;
+
+    std::vector<std::pair<ASIFID_t, ScionAs*> > remote_as_info;
 
     void ConnectInternalNodes(bool only_propagation_delay);
     void InitializeLatencies(bool only_propagation_delay);
@@ -170,6 +224,9 @@ class ScionAs : public Node
     void InstantiateBeaconServer(bool parallel_scheduler,
                                  rapidxml::xml_node<>* xml_node,
                                  const YAML::Node& config);
+
+
+  friend class SCIONSimulationContext;
 };
 } // namespace ns3
 #endif // SCION_SIMULATOR_SCION_AS_H

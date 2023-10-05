@@ -97,6 +97,8 @@ class Socket : public Object
         ERROR_ADDRNOTAVAIL,
         ERROR_ADDRINUSE,
         SOCKET_ERRNO_LAST
+
+        // Error_No_path // when dialing a remote IA to which we cant find no path
     };
 
     /**

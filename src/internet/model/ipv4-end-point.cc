@@ -138,6 +138,8 @@ Ipv4EndPoint::ForwardUp(Ptr<Packet> p,
 {
     NS_LOG_FUNCTION(this << p << &header << sport << incomingInterface);
 
+    // most likely the RXCallback will correspond to a SocketType's ForwardUP method,
+    // which it installed in this EndPoint when the Socket was bound
     if (!m_rxCallback.IsNull())
     {
         m_rxCallback(p, header, sport, incomingInterface);

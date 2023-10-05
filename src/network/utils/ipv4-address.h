@@ -204,13 +204,14 @@ class Ipv4Address
      */
     static Ipv4Address GetLoopback();
 
-  private:
+  
     /**
      * \brief Get the underlying address type (automatically assigned).
      *
      * \returns the address type
      */
     static uint8_t GetType();
+    private:
     uint32_t m_address; //!< IPv4 address
     bool m_initialized; //!< IPv4 address has been explicitly initialized to a valid value.
 

@@ -41,8 +41,8 @@ GreenBeaconing::DoInitializations(uint32_t num_ases,
     {
         beacons_per_dst_per_ing_if_sorted_by_pollution.at(i) =
             std::vector<std::multimap<ld, Beacon*>>();
-        beacons_per_dst_per_ing_if_sorted_by_pollution.at(i).resize(as->GetNDevices());
-        for (uint32_t j = 0; j < as->GetNDevices(); ++j)
+        beacons_per_dst_per_ing_if_sorted_by_pollution.at(i).resize(GetAs()->GetNInterfaces());
+        for (uint32_t j = 0; j < GetAs()->GetNInterfaces(); ++j)
         {
             beacons_per_dst_per_ing_if_sorted_by_pollution.at(i).at(j) =
                 std::multimap<ld, Beacon*>();
@@ -133,18 +133,18 @@ GreenBeaconing::InsertToAlgorithmDataStructures(Beacon* the_beacon,
 void
 GreenBeaconing::DisseminateBeacons(NeighbourRelation relation)
 {
-    uint32_t neighbors_cnt = as->neighbors.size();
-    omp_set_num_threads(num_core);
+    uint32_t neighbors_cnt = GetAs()->neighbors.size();
+    omp_set_num_threads(SCIONSimulationContext::getInstance().NumCores());
 #pragma omp parallel for
     for (uint32_t i = 0; i < neighbors_cnt; ++i)
     { // Per neighbor AS
 
-        if (as->neighbors.at(i).second != relation)
+        if (GetAs()->neighbors.at(i).second != relation)
         {
             continue;
         }
 
-        uint16_t remote_as_no = as->neighbors.at(i).first;
+        uint16_t remote_as_no = GetAs()->neighbors.at(i).first;
         for (const auto& dst_as_beacons_pair : beacon_store)
         { // Per destination AS
             uint16_t dst_as_no = dst_as_beacons_pair.first;
@@ -197,7 +197,7 @@ GreenBeaconing::SelectBeaconsToDisseminatePerDstPerNbr(
 {
     std::map<uint16_t, std::multimap<ld, Beacon*>> valid_candidates;
 
-    const auto& interfaces = as->interfaces_per_neighbor_as.at(remote_as_no);
+    const auto& interfaces = GetAs()->interfaces_per_neighbor_as.at(remote_as_no);
     for (const auto& self_egress_if_no : interfaces)
     {
         valid_candidates.insert(std::make_pair(self_egress_if_no, std::multimap<ld, Beacon*>()));
@@ -228,7 +228,7 @@ GreenBeaconing::SelectBeaconsToDisseminatePerDstPerNbr(
                 continue;
             }
 
-            const auto& interfaces = as->interfaces_per_neighbor_as.at(remote_as_no);
+            const auto& interfaces = GetAs()->interfaces_per_neighbor_as.at(remote_as_no);
             for (const auto& self_egress_if_no : interfaces)
             {
                 ld pollution_index = the_beacon->static_info_extension.at(StaticInfoType::CO2) +
@@ -256,12 +256,12 @@ GreenBeaconing::SelectBeaconsToDisseminatePerDstPerNbr(
             ld pollution_index = pollution_beacon_pair.first;
             Beacon* the_beacon = pollution_beacon_pair.second;
 
-            uint16_t remote_ingress_if_no = as->GetRemoteAsInfo(self_egress_if_no).first;
-            ScionAs* remote_as = as->GetRemoteAsInfo(self_egress_if_no).second;
+            uint16_t remote_ingress_if_no = GetAs()->GetRemoteAsInfo(self_egress_if_no).first;
+            ScionAs* remote_as = GetAs()->GetRemoteAsInfo(self_egress_if_no).second;
 
             ld latency =
                 the_beacon->static_info_extension.at(StaticInfoType::LATENCY) +
-                as->latencies_between_interfaces.at(LOWER_16_BITS(the_beacon->the_path.back()))
+                GetAs()->latencies_between_interfaces.at(LOWER_16_BITS(the_beacon->the_path.back()))
                     .at(self_egress_if_no);
 
             static_info_extension_t static_info_extension;

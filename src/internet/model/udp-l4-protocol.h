@@ -38,6 +38,8 @@ class Ipv4EndPoint;
 class Ipv6EndPointDemux;
 class Ipv6EndPoint;
 class UdpSocketImpl;
+
+class UdpSocket;
 class NetDevice;
 
 /**
@@ -190,7 +192,7 @@ class UdpL4Protocol : public IpL4Protocol
      * \param socket socket to remove
      * \return true if the socket has been removed
      */
-    bool RemoveSocket(Ptr<UdpSocketImpl> socket);
+    bool RemoveSocket(Ptr<UdpSocket> socket);
 
     // called by UdpSocket.
     /**

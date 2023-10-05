@@ -258,6 +258,7 @@ class Node : public Object
                                   const Address& to,
                                   NetDevice::PacketType packetType);
     /**
+     * Implementation helper for PromiscReceiveFromDevice and NonPromiscReceiveFromDevice
      * \brief Receive a packet from a device.
      * \param device the device
      * \param packet the packet

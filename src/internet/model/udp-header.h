@@ -152,7 +152,7 @@ class UdpHeader : public Header
      */
     uint16_t GetChecksum() const;
 
-  private:
+  protected:
     /**
      * \brief Calculate the header checksum
      * \param size packet size

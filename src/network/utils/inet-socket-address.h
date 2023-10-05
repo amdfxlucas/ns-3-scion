@@ -121,14 +121,15 @@ class InetSocketAddress
      * \return the Address corresponding to this object.
      */
     Address ConvertTo() const;
-
+    
+    static uint8_t GetType();
   private:
     /**
      * \brief Get the underlying address type (automatically assigned).
      *
      * \returns the address type
      */
-    static uint8_t GetType();
+    
     Ipv4Address m_ipv4; //!< the IPv4 address
     uint16_t m_port;    //!< the port
     uint8_t m_tos;      //!< the ToS

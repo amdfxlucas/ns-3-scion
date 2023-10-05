@@ -4,6 +4,8 @@ set(base_examples
     main-packet-tag
     packet-socket-apps
     lollipop-comparisons
+    #src/network/examples/
+    packet-socket-experiment
 )
 
 foreach(
@@ -15,5 +17,6 @@ foreach(
     SOURCE_FILES ${example}.cc
     LIBRARIES_TO_LINK ${libnetwork}
                       ${libcore}
+                      ${libpoint-to-point}
   )
 endforeach()

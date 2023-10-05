@@ -21,9 +21,10 @@
 
 #include "beacon.h"
 
-#include "ns3/externs.h"
 #include "ns3/path-segment.h"
 #include "ns3/utils.h"
+
+#include "ns3/scion-simulation-context.h" // this could be avoided, if only ScionASes  knew their ISD themselves
 
 namespace ns3
 {
@@ -78,7 +79,7 @@ Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
             ingress = LOWER_16_BITS(*hop);
         }
 
-        uint16_t isd = as_to_isd_map.at(as);
+        uint16_t isd = SCIONSimulationContext::getInstance().AsToIsd(as);
         previous_hop = *hop;
         uint64_t hop_field = (((uint64_t)isd) << 48) | (((uint64_t)as) << 32) |
                              (((uint64_t)ingress) << 16) | ((uint64_t)egress);
@@ -88,7 +89,7 @@ Beacon::ExtractPathSegmentFromPushBasedBeacon(PathSegment& path_segment) const
     uint16_t egress = SECOND_UPPER_16_BITS(previous_hop); // previos_hop now points to path.front()
     uint16_t ingress = 0;
     uint16_t as = UPPER_16_BITS(previous_hop); // sender_as of prev_hop
-    uint16_t isd = as_to_isd_map.at(as);
+    uint16_t isd = SCIONSimulationContext::getInstance().AsToIsd(as);
 
     uint64_t hop_field = (((uint64_t)isd) << 48) | (((uint64_t)as) << 32) |
                          (((uint64_t)ingress) << 16) | ((uint64_t)egress);
@@ -144,7 +145,7 @@ Beacon::ExtractPathSegmentFromPullBasedBeacon(PathSegment& path_segment) const
             ingress = SECOND_UPPER_16_BITS(*hop);
         }
 
-        uint16_t isd = as_to_isd_map.at(as);
+        uint16_t isd = SCIONSimulationContext::getInstance().AsToIsd(as);
         previous_hop = *hop;
         uint64_t hop_field = (((uint64_t)isd) << 48) | (((uint64_t)as) << 32) |
                              (((uint64_t)ingress) << 16) | ((uint64_t)egress);
@@ -154,7 +155,7 @@ Beacon::ExtractPathSegmentFromPullBasedBeacon(PathSegment& path_segment) const
     uint16_t egress = LOWER_16_BITS(previous_hop);
     uint16_t ingress = 0;
     uint16_t as = SECOND_LOWER_16_BITS(previous_hop);
-    uint16_t isd = as_to_isd_map.at(as);
+    uint16_t isd = SCIONSimulationContext::getInstance().AsToIsd(as);
 
     uint64_t hop_field = (((uint64_t)isd) << 48) | (((uint64_t)as) << 32) |
                          (((uint64_t)ingress) << 16) | ((uint64_t)egress);

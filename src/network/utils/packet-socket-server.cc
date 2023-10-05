@@ -69,6 +69,7 @@ PacketSocketServer::~PacketSocketServer()
 {
     NS_LOG_FUNCTION(this);
 }
+Ptr<Socket> PacketSocketServer::GetSocket() {return m_socket;} // only for experiment
 
 void
 PacketSocketServer::DoDispose()

@@ -104,7 +104,7 @@ class Address
      * The maximum size of a byte buffer which
      * can be stored in an Address instance.
      */
-    static constexpr uint32_t MAX_SIZE{20};
+    static constexpr uint32_t MAX_SIZE{30};
 
     /**
      * Create an invalid address
@@ -212,6 +212,8 @@ class Address
      * \returns a new type id.
      */
     static uint8_t Register();
+
+    uint8_t GetType()const {return m_type;}
     /**
      * Get the number of bytes needed to serialize the underlying Address
      * Typically, this is GetLength () + 2

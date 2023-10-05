@@ -118,6 +118,7 @@ main(int argc, char* argv[])
     NS_LOG_INFO("creating IPv4 addresses");
     Ipv4AddressHelper address;
     address.SetBase("10.0.0.0", "255.255.255.252");
+    //----------------------------------------------------------------
 
     int totlinks = inFile->LinksSize();
 
@@ -140,6 +141,7 @@ main(int argc, char* argv[])
         p2p.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
         ndc[i] = p2p.Install(nc[i]);
     }
+    //----------------------------------------------------------------------
 
     // it crates little subnets, one for each couple of nodes.
     NS_LOG_INFO("creating IPv4 interfaces");

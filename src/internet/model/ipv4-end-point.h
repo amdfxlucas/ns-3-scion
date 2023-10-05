@@ -46,6 +46,8 @@ class Packet;
  * layers that a packet from a lower layer was received.  In the ns3
  * internet-stack, these notifications are automatically registered to be
  * received by the corresponding socket.
+ 
+ An Endpoint is created i.e. on a Socket::Bind()
  */
 
 class Ipv4EndPoint

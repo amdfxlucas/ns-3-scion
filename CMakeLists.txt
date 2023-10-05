@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.10..3.10)
 # ##############################################################################
 # Project name                        #
 # ##############################################################################
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp" CACHE STRING "Default CXX options" FORCE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fPIC -fconcepts-diagnostics-depth=10" CACHE STRING "Default CXX options" FORCE)
 project(NS3 CXX C)
 
 file(STRINGS VERSION NS3_VER)

@@ -1,16 +1,18 @@
 time_resolution: NS
-topology: /cluster/home/tabaeias/scion-simulator/topology/500_geo_rel_on_demand_lat_one_group.xml
-output: /cluster/scratch/tabaeias/baseline_results.txt
+topology: /home/lucas/repos/ns-3-scion/topology/5_geo_rel.xml
+output: /home/lucas/repos/ns-3-scion/sim-output/baseline_res_5_geo_rel.txt
 simulation_duration: 105min
-NUM_CORE: 128
+NUM_CORE: 12
 beacon_service:
   policy: baseline
   #br_br_energy_file: /cluster/scratch/tabaeias/br_br_energy.txt
-  write_beacons_directory: /cluster/scratch/tabaeias/
-  period: 10min
+  #write_beacons_directory: /home/lucas/repos/ns-3-scion/out-out
+  period: 5min
   expiration_period: 6h
   first_beaconing: 0min
   last_beaconing: 100min
 post_eval:
   - func: PrintAllDiscoveredPaths
-  - func: PrintNoBeaconsPerInterfacePerDstOrOpt
+  - func: PrintAllPathsAttributes
+  - func: PrintBeaconStores
+  #- func: PrintNoBeaconsPerInterfacePerDstOrOpt

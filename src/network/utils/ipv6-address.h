@@ -403,12 +403,12 @@ class Ipv6Address
      */
     void GetBytes(uint8_t buf[16]) const;
 
-  private:
     /**
      * \brief Return the Type of address.
      * \return type of address
      */
     static uint8_t GetType();
+    private:
 
     /**
      * \brief The address representation on 128 bits (16 bytes).

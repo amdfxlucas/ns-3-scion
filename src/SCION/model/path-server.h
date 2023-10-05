@@ -33,6 +33,8 @@
 
 namespace ns3
 {
+
+
 class PathServer : public ScionCapableNode
 {
   public:
@@ -42,11 +44,7 @@ class PathServer : public ScionCapableNode
                host_addr_t local_address,
                double latitude,
                double longitude,
-               ScionAs* as)
-        : ScionCapableNode(system_id, isd_number, as_number, local_address, latitude, longitude, as)
-    {
-        set_of_all_core_ases.insert(ia_addr);
-    }
+               ScionAs* as);
 
     void RegisterCorePathSegment(PathSegment& path_segment, std::string key);
     void RegisterUpPathSegment(PathSegment& path_segment, std::string key);

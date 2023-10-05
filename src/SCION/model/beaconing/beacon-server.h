@@ -24,7 +24,6 @@
 
 #include "beacon.h"
 
-#include "ns3/externs.h"
 #include "ns3/nstime.h"
 #include "ns3/rapidxml.hpp"
 #include "ns3/scion-as.h"
@@ -36,8 +35,15 @@
 namespace ns3
 {
 
+    class SCIONSimulationContext;
+
 #define MAX_BEACONS_TO_STORE 20
 #define MAX_BEACONS_TO_SEND 5
+#define BEACON_KEY_WIDTH 2    
+//   beacon have a key that consists of: 'BEACON_KEY_WIDTH'x Digits of AS 
+// plus equally many digits of the egress interface Nr for each hop
+// if your simulation has either an AS with more than 99x interfaces
+// or more than 99 ASes , you need to increase this to 3
 
 class ScionAs;
 using dstAS_t = uint16_t;
@@ -108,7 +114,7 @@ class BeaconServer
     const std::vector<uint64_t>& GetBeaconsSentPerInterface() const;
 
   protected:
-    ScionAs* as;
+   
 
     const bool parallel_scheduler;
 
@@ -226,18 +232,20 @@ class BeaconServer
 
     std::pair<ld, ld> CalculateFinalDiversityScores(Beacon* the_beacon);
 
-    friend void ReadBr2BrEnergy(ns3::NodeContainer as_nodes,
+    /* friend void ReadBr2BrEnergy(ns3::NodeContainer as_nodes,
                                 std::map<int32_t, uint16_t> real_to_alias_as_no,
-                                const YAML::Node& config);
-
+                                const YAML::Node& config); */
+    friend class SCIONSimulationContext;
     void ReadBeacons();
 
     void WriteBeacons();
+    private:
+     ScionAs* as;
 };
 
-void ReadBr2BrEnergy(NodeContainer as_nodes,
+/* void ReadBr2BrEnergy(NodeContainer as_nodes,
                      std::map<int32_t, uint16_t> real_to_alias_as_no,
-                     const YAML::Node& config);
+                     const YAML::Node& config); */
 
 } // namespace ns3
 #endif // SCION_SIMULATOR_BEACON_SERVER_H

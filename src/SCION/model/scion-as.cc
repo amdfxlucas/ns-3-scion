@@ -34,6 +34,8 @@
 
 #include "ns3/core-module.h"
 
+#include "ns3/border-router-application.h"
+
 #include <random>
 #include <yaml-cpp/yaml.h>
 
@@ -41,13 +43,12 @@ namespace ns3
 {
 
 ScionAs::ScionAs(uint32_t system_id,
-                 bool parallel_scheduler,
+                 bool parallel_scheduler,   // this should be dealt with by the SCIONSimulationContext. It is of no concern to the ScionAS
                  uint16_t as_number,
                  rapidxml::xml_node<>* xml_node,
                  const YAML::Node& config,
                  bool malicious_border_routers,
-                 Time local_time)
-    : Node(system_id)
+                 Time local_time)    
 {
     PropertyContainer p = ParseProperties(xml_node);
 
@@ -137,21 +138,14 @@ ScionAs::DoInitializations(uint32_t num_ases,
  \param egress_interface_no  egress Interface Number of local AS
  \returns Remote AS and its ingress interface No with which
      its is connected to this AS's passed egress_interface
+
 */
-std::pair<uint16_t, ScionAs*>
-ScionAs::GetRemoteAsInfo(uint16_t egress_interface_no)
+std::pair<ASIFID_t, ScionAs*>
+ScionAs::GetRemoteAsInfo(ASIFID_t egress_interface_no)
 {
     return remote_as_info.at(egress_interface_no);
 }
 
-void
-ScionAs::ReceiveBeacon(Beacon& received_beacon,
-                       uint16_t sender_as,
-                       uint16_t remote_if,
-                       uint16_t local_if)
-{
-    beacon_server->ReceiveBeacon(received_beacon, sender_as, remote_if, local_if);
-}
 
 void
 ScionAs::SetBeaconServer(BeaconServer* beacon_server)
@@ -221,6 +215,15 @@ ScionAs::AddBr(double latitude,
     return the_br;
 }
 
+/*!
+ Applications have a Node* GetNode()  method ^^
+*/
+BorderRouterApplication* AddBorderRouterApplication( double latitude,
+double longitude, Time processing_delay, Time  processing_throughput_delay)
+{
+return nullptr;
+}
+
 void
 ScionAs::ConnectInternalNodes(bool only_propagation_delay)
 {
@@ -241,7 +244,7 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
     std::map<BorderRouter*, std::set<uint16_t>> border_router_to_if;
 
     // note: there is one BorderRouter for each AS-interface
-    for (uint16_t i = 0; i < GetNDevices(); ++i)
+    for (uint16_t i = 0; i < GetNInterfaces(); ++i)
     {
         BorderRouter* br = border_routers.at(i); // BorderRouter at I-th Interface
         // why not just: 
@@ -479,16 +482,16 @@ ScionAs::ConnectInternalNodes(bool only_propagation_delay)
 void
 ScionAs::InitializeLatencies(bool only_propagation_delay)
 {
-    latencies_between_interfaces.resize(GetNDevices());
+    latencies_between_interfaces.resize(GetNInterfaces());
 
-    for (uint64_t i = 0; i < GetNDevices(); ++i)
+    for (uint64_t i = 0; i < GetNInterfaces(); ++i)
     {
-        latencies_between_interfaces.at(i).resize(GetNDevices());
+        latencies_between_interfaces.at(i).resize(GetNInterfaces());
     }
 
-    for (uint32_t i = 0; i < GetNDevices(); ++i)
+    for (uint32_t i = 0; i < GetNInterfaces(); ++i)
     {
-        for (uint32_t j = i + 1; j < GetNDevices(); ++j)
+        for (uint32_t j = i + 1; j < GetNInterfaces(); ++j)
         {
             latencies_between_interfaces.at(i).at(j) =
                 CalculateGreatCircleLatency(interfaces_coordinates.at(i).first,

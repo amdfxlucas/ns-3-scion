@@ -765,8 +765,10 @@ class Packet : public SimpleRefCount<Packet>
      * \param [in] sinr The received SINR.
      */
     typedef void (*SinrTracedCallback)(Ptr<const Packet> packet, double sinr);
+ //  protected:
+  Buffer& GetBuffer(){ return m_buffer;}
 
-  private:
+  protected:
     /**
      * \brief Constructor
      * \param buffer the packet buffer

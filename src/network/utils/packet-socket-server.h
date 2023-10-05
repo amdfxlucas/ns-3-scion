@@ -64,6 +64,8 @@ class PacketSocketServer : public Application
      */
     void SetLocal(PacketSocketAddress addr);
 
+    Ptr<Socket> GetSocket();// {return m_socket;} // only for experiment
+
   protected:
     void DoDispose() override;
 

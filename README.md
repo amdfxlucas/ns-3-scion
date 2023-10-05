@@ -33,15 +33,13 @@ This README excerpts some details from a more extensive
 tutorial that is maintained at:
 <https://www.nsnam.org/documentation/latest/>
 
-# Input:
-The minimal input to the simulator is the configuration file and the topology file.
+## Building ns-3
 
-1) The configuration file is a `.yaml` file that specifies the characteristics of the simulations. Examples available at 
-`/configs/`. New configuration files can be specified in `/configs/`.
-2) The topology file is a `.xml` file that specifies ASes and links between them. 
-This file is the result of running 
-[fnss](https://fnss.readthedocs.io/en/latest/apidoc/generated/fnss.topologies.parsers.parse_caida_as_relationships.html)' 
-`parse_caida_as_relationships` over the [CAIDA](https://www.caida.org)'s AS-geo-rel data set.
+The code for the framework and the default models provided
+by ns-3 is built as a set of libraries. User simulations
+are expected to be written as simple programs that make
+use of these ns-3 libraries.
+
 
 To build the set of default libraries and the example
 programs included in this package, you need to use the
@@ -263,18 +261,3 @@ The minimal input to the simulator is the configuration file and the topology fi
 This file is the result of running 
 [fnss](https://fnss.readthedocs.io/en/latest/apidoc/generated/fnss.topologies.parsers.parse_caida_as_relationships.html)' 
 `parse_caida_as_relationships` over the [CAIDA](https://www.caida.org)'s AS-geo-rel data set.
-
-# Getting Started:
-
-You first need to configure the simulator before running it:
-
-`./waf distclean`
-
-`CCFLAGS_EXTRA="-O3 -fopenmp -std=c++17" CXXFLAGS_EXTRA="-O3 -fopenmp -std=c++17"  ./waf configure --build-profile=debug|default|release|optimized --enable-asserts --enable-logs`
-
-`./waf --run "scion /path/to/config.yaml"`
-
-
-
-Note that simulator has been tested and developed with GCC version 7 using cpp 17. Since NS3 is configured to treat all compilation warnings as
-errors, trying to compile with different GCC versions will likely fail.

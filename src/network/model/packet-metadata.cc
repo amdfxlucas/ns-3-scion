@@ -73,6 +73,17 @@ PacketMetadata::EnableChecking()
     m_enableChecking = true;
 }
 
+void PacketMetadata::DisableChecking()
+{
+    m_enableChecking = false;
+    
+}
+
+void PacketMetadata::Disable()
+{
+    m_enable = false;
+}
+
 void
 PacketMetadata::ReserveCopy(uint32_t size)
 {

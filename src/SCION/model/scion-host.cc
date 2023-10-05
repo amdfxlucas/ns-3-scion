@@ -38,7 +38,7 @@ ScionHost::ReceiveRegisteredPathSegments(PathSegmentType seg_type,
                                          ia_t dst_ia,
                                          const reg_path_segs_to_one_as_t* path_segments)
 {
-    NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << local_address
+    NS_LOG_FUNCTION("I am host " << Isd() << ":" << As() << ":" << local_address
                                  << ". Registered paths fetched: from " << src_ia << " "
                                  << GET_ISDN(src_ia) << ":" << GET_ASN(src_ia) << " to "
                                  << GET_ISDN(dst_ia) << ":" << GET_ASN(dst_ia)
@@ -72,8 +72,8 @@ ScionHost::RequestForPathSegments(ia_t dst_ia)
 {
     uint16_t dst_isd = GET_ISDN(dst_ia);
 
-    SendRequestForPathSegments(PathSegmentType::UP_SEG, ia_addr, 0);
-    if (dst_isd == isd_number)
+    SendRequestForPathSegments(PathSegmentType::UP_SEG, Ia(), 0);
+    if (dst_isd == Isd() )
     {
         SendRequestForPathSegments(PathSegmentType::CORE_SEG, 0, 0);
         SendRequestForPathSegments(PathSegmentType::DOWN_SEG, 0, dst_ia);
@@ -132,17 +132,20 @@ ScionHost::SendRequestForPathSegments(PathSegmentType seg_type, ia_t src_ia, ia_
     payload.path_req_from_host.dst_ia = dst_ia;
     payload.path_req_from_host.seg_type = seg_type;
 
-    ScionPacket* packet = CreateScionPacket(payload, payload_type, ia_addr, 1, 0);
+    ScionPacket* packet = CreateScionPacket(payload, payload_type, Ia(), 1, 0);
     SendScionPacket(packet);
 }
 
+/*!
+  \param dst_ia  the Destination IA to which a path is sought
+*/
 void
 ScionHost::SearchInCachedSegments(ia_t dst_ia,
                                   std::vector<const PathSegment*>& path,
                                   std::vector<uint8_t>& shortcuts)
 {
 
-    if (dst_ia == ia_addr)
+    if (dst_ia == Ia())
     {   // inter-AS messaging needs no paths
         return;
     }
@@ -168,10 +171,10 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
     }
 
     if (dst_in_which_cache == 0 && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL &&
-        cached_core_path_segments.at(dst_ia)->find(ia_addr) !=
+        cached_core_path_segments.at(dst_ia)->find( Ia() ) !=
             cached_core_path_segments.at(dst_ia)->end())
     {
-        path.push_back(cached_core_path_segments.at(dst_ia)->at(ia_addr)->begin()->second);
+        path.push_back(cached_core_path_segments.at(dst_ia)->at(Ia())->begin()->second);
         return;
     }
 
@@ -181,11 +184,11 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
         {
             if (cached_up_path_segments.find(core_seg_src_ia) != cached_up_path_segments.end())
             {
-                NS_ASSERT(cached_up_path_segments.at(core_seg_src_ia)->find(ia_addr) !=
+                NS_ASSERT(cached_up_path_segments.at(core_seg_src_ia)->find(Ia()) !=
                           cached_up_path_segments.at(dst_ia)->end());
 
                 path.push_back(
-                    cached_up_path_segments.at(core_seg_src_ia)->at(ia_addr)->begin()->second);
+                    cached_up_path_segments.at(core_seg_src_ia)->at(Ia())->begin()->second);
                 path.push_back(core_path_segs->begin()->second);
 
                 return;
@@ -196,15 +199,15 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
 
     if (dst_in_which_cache == 1 && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
-        NS_ASSERT(cached_up_path_segments.at(dst_ia)->find(ia_addr) !=
+        NS_ASSERT(cached_up_path_segments.at(dst_ia)->find(Ia()) !=
                   cached_up_path_segments.at(dst_ia)->end());
-        path.push_back(cached_up_path_segments.at(dst_ia)->at(ia_addr)->begin()->second);
+        path.push_back(cached_up_path_segments.at(dst_ia)->at(Ia())->begin()->second);
         return;
     }
 
     if (dst_in_which_cache == 2 && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
     {
-        if (cached_down_path_segments.at(dst_ia)->find(ia_addr) !=
+        if (cached_down_path_segments.at(dst_ia)->find(Ia()) !=
             cached_down_path_segments.at(dst_ia)->end())
         {
             path.push_back(
@@ -241,7 +244,7 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
                         cached_up_path_segments.end())
                     {
                         path.push_back(cached_up_path_segments.at(core_seg_src_ia)
-                                           ->at(ia_addr)
+                                           ->at(Ia())
                                            ->begin()
                                            ->second);
                         path.push_back(core_path_segs->begin()->second);
@@ -260,8 +263,8 @@ ScionHost::SearchInCachedSegments(ia_t dst_ia,
 void
 ScionHost::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time)
 {
-    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == GetLocalAddress());
-    NS_LOG_FUNCTION("I am host " << isd_number << ":" << as_number << ":" << local_address
+    NS_ASSERT(packet->dst_ia == Ia() && packet->dst_host == GetLocalAddress());
+    NS_LOG_FUNCTION("I am host " << Isd() << ":" << As() << ":" << local_address
                                  << ". Packet received from " << GET_ISDN(packet->src_ia) << ":"
                                  << GET_ASN(packet->src_ia) << ":" << packet->src_host);
 
@@ -300,7 +303,7 @@ ScionHost::SendArbitraryPacket(ia_t dst_ia, host_addr_t dst_host)
     Payload payload;
     PayloadType payload_type = PayloadType::EMPTY;
 
-    if (dst_ia == ia_addr) // Message within same AS ? (no path needed then)
+    if (dst_ia == Ia() ) // Message within same AS ? (no path needed then)
     {
         ScionPacket* packet = CreateScionPacket(payload, payload_type, dst_ia, dst_host, 0);
         SendScionPacket(packet);

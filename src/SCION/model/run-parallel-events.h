@@ -21,9 +21,9 @@
 #ifndef SCION_SIMULATOR_RUN_PARALLEL_EVENTS_H
 #define SCION_SIMULATOR_RUN_PARALLEL_EVENTS_H
 
-#include "externs.h"
 #include "scion-as.h"
 #include "scion-packet.h"
+#include "ns3/scion-simulation-context.h"
 
 #include <omp.h>
 #include <yaml-cpp/yaml.h>
@@ -35,11 +35,11 @@ template <typename MEM, typename OBJ>
 void
 RunParallelEvents(host_addr_t host_addr, MEM mem_ptr)
 {
-    omp_set_num_threads(num_core);
+    omp_set_num_threads(SCIONSimulationContext::getInstance().NumCores());
 #pragma omp parallel for schedule(dynamic)
-    for (uint32_t i = 0; i < nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < SCIONSimulationContext::getInstance().GetN(); ++i)
     {
-        ScionAs* node = dynamic_cast<ScionAs*>(PeekPointer(nodes.Get(i)));
+        auto node = SCIONSimulationContext::getInstance().Nodes().at(i);
         ((dynamic_cast<OBJ>(node->GetHost(host_addr)))->*mem_ptr)();
     }
 }
@@ -48,11 +48,11 @@ template <typename MEM>
 void
 RunParallelEvents(MEM mem_ptr)
 {
-    omp_set_num_threads(num_core);
+    omp_set_num_threads(SCIONSimulationContext::getInstance().NumCores());
 #pragma omp parallel for schedule(dynamic)
-    for (uint32_t i = 0; i < nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < SCIONSimulationContext::getInstance().GetN(); ++i)
     {
-        ScionAs* node = dynamic_cast<ScionAs*>(PeekPointer(nodes.Get(i)));
+        auto node = SCIONSimulationContext::getInstance().Nodes().at(i);
         ((node->GetBeaconServer())->*mem_ptr)();
     }
 }

@@ -25,7 +25,9 @@
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/run-parallel-events.h"
 #include "ns3/scion-core-as.h"
+#include "ns3/string-utils.h"
 #include "ns3/utils.h"
+
 
 #include <omp.h>
 
@@ -36,12 +38,14 @@ BeaconServer::BeaconServer(ScionAs* as,
                            bool parallel_scheduler,
                            rapidxml::xml_node<>* xml_node,
                            const YAML::Node& config)
-    : as(as),
+    : 
       parallel_scheduler(parallel_scheduler),
       beaconing_period(Time(config["beacon_service"]["period"].as<std::string>())),
       expiration_period(Time(config["beacon_service"]["expiration_period"].as<std::string>())
                             .ToInteger(Time::MIN)),
-      last_beaconing_event_time(Time(config["beacon_service"]["last_beaconing"].as<std::string>()))
+      last_beaconing_event_time(Time(config["beacon_service"]["last_beaconing"].as<std::string>())),
+      as(as)
+
 {
     non_requested_pull_based_beacon_container.resize(2);
     PropertyContainer p = ParseProperties(xml_node);
@@ -59,7 +63,7 @@ BeaconServer::BeaconServer(ScionAs* as,
     {
         file_to_read_beacons =
             config["beacon_service"]["read_beacons_directory"].as<std::string>() + "beacons_" +
-            std::to_string(as->as_number) + ".json";
+            std::to_string(as->AS()) + ".json";
     }
     else
     {
@@ -70,7 +74,7 @@ BeaconServer::BeaconServer(ScionAs* as,
     {
         file_to_write_beacons =
             config["beacon_service"]["write_beacons_directory"].as<std::string>() + "beacons_" +
-            std::to_string(as->as_number) + ".json";
+            std::to_string(GetAs()->AS()) + ".json";
     }
     else
     {
@@ -83,10 +87,10 @@ BeaconServer::DoInitializations(uint32_t num_ases,
                                 rapidxml::xml_node<>* xml_node,
                                 const YAML::Node& config)
 {
-    beacons_sent_per_interface.resize(as->GetNDevices());
-    pull_based_beacons_sent_per_opt_per_interface.resize(as->GetNDevices());
-    push_based_beacons_sent_per_opt_per_interface.resize(as->GetNDevices());
-    beacons_sent_per_dst_per_interface.resize(as->GetNDevices());
+    beacons_sent_per_interface.resize( GetAs()->GetNInterfaces());
+    pull_based_beacons_sent_per_opt_per_interface.resize(GetAs()->GetNInterfaces());
+    push_based_beacons_sent_per_opt_per_interface.resize(GetAs()->GetNInterfaces());
+    beacons_sent_per_dst_per_interface.resize(GetAs()->GetNInterfaces());
 }
 
 void BeaconServer::PerLinkInitializations(rapidxml::xml_node<>* xml_node,
@@ -114,9 +118,9 @@ BeaconServer::ScheduleBeaconing(Time last_beaconing_event_time)
     {
         if (parallel_scheduler)
         {
-            if (as->GetPathServer() != NULL)
+            if (GetAs()->GetPathServer() != NULL)
             {
-                Simulator::Schedule(t + as->latency_between_path_server_and_beacon_server,
+                Simulator::Schedule(t + GetAs()->latency_between_path_server_and_beacon_server,
                                     &RunParallelEvents<void (BeaconServer::*)()>,
                                     &BeaconServer::RegisterToLocalPathServer);
             }
@@ -129,7 +133,7 @@ BeaconServer::ScheduleBeaconing(Time last_beaconing_event_time)
                                 &BeaconServer::UpdateStatePeriodic);
         }
 
-        if (dynamic_cast<ScionCoreAs*>(as) != NULL)
+        if (dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
         {
             Simulator::Schedule(t,
                                 &BeaconServer::DisseminateBeacons,
@@ -142,8 +146,9 @@ BeaconServer::ScheduleBeaconing(Time last_beaconing_event_time)
                                 this,
                                 NeighbourRelation::CUSTOMER);
         }
-        else
+        else // we are BeaconServer of NonCoreAS
         {
+            // thus we do no core beaconing
             Simulator::Schedule(t,
                                 &BeaconServer::DisseminateBeacons,
                                 this,
@@ -233,7 +238,7 @@ BeaconServer::InitiateBeacons(NeighbourRelation relation)
 {
     NS_ASSERT(now == (uint16_t)Simulator::Now().ToInteger(Time::MIN));
     uint32_t neighbors_cnt = GetAs()->neighbors.size();
-    omp_set_num_threads(num_core);
+    omp_set_num_threads(SCIONSimulationContext::getInstance().NumCores());
 
 #pragma omp parallel for
     for (uint32_t i = 0; i < neighbors_cnt; ++i)
@@ -273,6 +278,16 @@ BeaconServer::InitiateBeaconsPerInterface(uint16_t self_egress_if_no,
                           static_info_extension);
 }
 
+/*! 
+  \param  selected_beacon  a beacon, which was received earlier and shall be propagated to remote_as
+  \param self_egress_if_no    the interface on which we send the beacon,
+                 in order for it to reach sender_as's remote_ingress interface
+  \param remote_ingress_if_no  the interface on which remote_as will receive the beacon
+  \param remote_as  the AS to which we are about to forward the beacon
+  \param beacon_direction
+  \param optimization_target
+  \param static_info_extension
+*/
 void
 BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
                                     uint16_t self_egress_if_no,
@@ -283,7 +298,7 @@ BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
                                     BeaconDirectionT beacon_direction)
 {
     std::string key;
-    uint16_t remote_as_no = remote_as->as_number;
+    uint16_t remote_as_no = remote_as->AS();
 
     path new_path;
     isd_path new_isd_path;
@@ -291,7 +306,7 @@ BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
     uint16_t next_expiration_time;
 
     uint64_t link_info;
-    link_info = (((uint64_t)GetAs()->as_number) << 48) | (((uint64_t)self_egress_if_no) << 32) |
+    link_info = (((uint64_t)GetAs()->AS()) << 48) | (((uint64_t)self_egress_if_no) << 32) |
                 (((uint64_t)remote_as_no) << 16) | ((uint64_t)remote_ingress_if_no);
 
     if (selected_beacon == NULL)
@@ -299,12 +314,13 @@ BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
         next_initiation_time = now;
         next_expiration_time = now + expiration_period;
         if (optimization_target != NULL)
-        {
-            key = std::string((char*)&optimization_target->target_id, 2);
+        {   
+            //key = std::string((char*)&optimization_target->target_id, 2);
+            key = toNdigit_string( optimization_target->target_id, BEACON_KEY_WIDTH );
             if (beacon_direction == BeaconDirectionT::PULL_BASED)
             {
                 NS_ASSERT(optimization_target->target_as != remote_as_no);
-                key = key + std::string((char*)&optimization_target->target_as, 2);
+                key = key + toNdigit_string(optimization_target->target_as, BEACON_KEY_WIDTH );
             }
         }
     }
@@ -316,14 +332,14 @@ BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
         key = selected_beacon->key;
         new_isd_path = selected_beacon->the_isd_path;
     }
-
-    key = key + std::string((char*)&GetAs()->as_number, 2) +
-          std::string((char*)&self_egress_if_no, 2);
+    //  this conversion is just horrifying 
+    key = key + toNdigit_string(GetAs()->AS(),BEACON_KEY_WIDTH)  +
+           toNdigit_string(self_egress_if_no,BEACON_KEY_WIDTH) ;
     new_path.push_back(link_info);
 
-    if (new_isd_path.size() == 0 || new_isd_path.back() != GetAs()->isd_number)
+    if (new_isd_path.size() == 0 || new_isd_path.back() != GetAs()->ISD())
     {
-        new_isd_path.push_back(GetAs()->isd_number);
+        new_isd_path.push_back(GetAs()->ISD());
     }
 
     uint16_t initiation_time =
@@ -345,8 +361,8 @@ BeaconServer::GenerateBeaconAndSend(Beacon* selected_beacon,
                                  new_isd_path);
 
     IncrementControlPlaneBytesSent(to_disseminate_beacon, self_egress_if_no);
-    remote_as->ReceiveBeacon(to_disseminate_beacon,
-                             GetAs()->as_number,
+    remote_as->GetBeaconServer()->ReceiveBeacon(to_disseminate_beacon,
+                             GetAs()->AS(),
                              self_egress_if_no,
                              remote_ingress_if_no);
 }
@@ -376,6 +392,15 @@ BeaconServer::UpdateStatePeriodic()
     }
 }
 
+/*!
+  \param sender_as  AS that forwarded the beacon to us ( last hop field on path ?!)
+        In general this might be a different AS than the originator of the beacon [ DST_AS(received_becon)]
+        which constructed and disseminated it in the first place.
+   \param remote_if  The interface of sender_as, from which it forwarded the beacon to us (local_if)
+   \param local_if  The interface on which we received the beacon from sender_as     
+  
+
+*/
 void
 BeaconServer::InsertBeacon(Beacon& the_beacon,
                            uint16_t dst_as,
@@ -389,14 +414,14 @@ BeaconServer::InsertBeacon(Beacon& the_beacon,
     if (the_beacon.beacon_direction == BeaconDirectionT::PULL_BASED)
     {
         auto& beacon_container =
-            (ORIGINATOR(the_beacon) == GetAs()->as_number)
+            (ORIGINATOR(the_beacon) == GetAs()->AS())
                 ? requested_pull_based_beacon_container
                 : non_requested_pull_based_beacon_container.at(pull_based_write);
         NS_ASSERT(beacon_container.find(the_beacon.key) == beacon_container.end());
         beacon_container.insert(std::make_pair(the_beacon.key, the_beacon));
         Beacon* to_insert_beacon = &beacon_container.at(the_beacon.key);
 
-        if (ORIGINATOR(the_beacon) == GetAs()->as_number)
+        if (ORIGINATOR(the_beacon) == GetAs()->AS())
         {
             IncrementNextRoundValidBeaconsCount(dst_as);
         }
@@ -523,7 +548,7 @@ BeaconServer::DeleteBeacon(Beacon* to_be_removed_beacon, ld replacement_key, uin
 
     if (to_be_removed_beacon->beacon_direction == BeaconDirectionT::PUSH_BASED ||
         (to_be_removed_beacon->beacon_direction == BeaconDirectionT::PULL_BASED &&
-         ORIGINATOR_PTR(to_be_removed_beacon) == as->as_number))
+         ORIGINATOR_PTR(to_be_removed_beacon) == GetAs()->AS()))
     {
         if (to_be_removed_beacon->is_new)
         {
@@ -539,7 +564,7 @@ BeaconServer::DeleteBeacon(Beacon* to_be_removed_beacon, ld replacement_key, uin
     auto& beacon_container =
         to_be_removed_beacon->beacon_direction == BeaconDirectionT::PUSH_BASED
             ? push_based_beacon_container
-            : ((ORIGINATOR_PTR(to_be_removed_beacon) == as->as_number)
+            : ((ORIGINATOR_PTR(to_be_removed_beacon) == GetAs()->AS())
                    ? requested_pull_based_beacon_container
                    : non_requested_pull_based_beacon_container.at(pull_based_write));
 
@@ -604,6 +629,11 @@ BeaconServer::IncrementControlPlaneBytesSent(Beacon& the_beacon, uint16_t interf
     }
 }
 
+/*!
+  \param sender_as  The AS that forwarded the beacon to us ( in GenerateBeaconAndSend() )
+  \param remote_if  The sender_as's egress_interface, on which it send the beacon towards us
+  \param local_if   Our local ingress_if on which we received the beacon from sender_as
+*/
 void
 BeaconServer::ReceiveBeacon(Beacon& received_beacon,
                             uint16_t sender_as,
@@ -694,9 +724,9 @@ BeaconServer::UpdateStateBeforeBeaconing()
     now = (uint16_t)Simulator::Now().ToInteger(Time::MIN);
     next_period = now + (uint16_t)beaconing_period.ToInteger(Time::MIN);
     bytes_sent_per_interface_per_period.insert(
-        std::make_pair(now, std::vector<uint32_t>(as->GetNDevices(), 0)));
+        std::make_pair(now, std::vector<uint32_t>(GetAs()->GetNInterfaces(), 0)));
     beacons_sent_per_interface_per_period.insert(
-        std::make_pair(now, std::vector<uint32_t>(as->GetNDevices(), 0)));
+        std::make_pair(now, std::vector<uint32_t>(GetAs()->GetNInterfaces(), 0)));
 }
 
 const uint16_t
@@ -865,8 +895,8 @@ BeaconServer::ReadBeacons()
         static_info_extension_t static_info_extension;
         path the_path = beacon_json["path"].get<std::vector<uint64_t>>();
         isd_path the_isd_path = beacon_json["isd_path"].get<std::vector<uint16_t>>();
-        std::vector<uint16_t> key_v = beacon_json["key"].get<std::vector<uint16_t>>();
-        std::string key = std::string(key_v.begin(), key_v.end());
+        auto key_v = beacon_json["key"].get<std::vector<std::string>>();
+        std::string key = StrJoin(key_v,""); //std::string(key_v.begin(), key_v.end());
         push_based_beacon_container.insert(std::make_pair(key,
                                                           Beacon(static_info_extension,
                                                                  NULL,
@@ -921,7 +951,8 @@ BeaconServer::WriteBeacons()
     {
         nlohmann::json beacon_json;
 
-        std::vector<uint16_t> v(key.begin(), key.end());
+       // std::vector<uint16_t> v(key.begin(), key.end());
+       auto v = Split( key, BEACON_KEY_WIDTH );
         beacon_json["key"] = nlohmann::json(v);
         beacon_json["initiation_time"] = 0;
         beacon_json["expiration_time"] = 0xFFFF;
@@ -936,86 +967,4 @@ BeaconServer::WriteBeacons()
     file.close();
 }
 
-void
-ReadBr2BrEnergy(NodeContainer as_nodes,
-                std::map<int32_t, uint16_t> real_to_alias_as_no,
-                const YAML::Node& config)
-{
-    std::ifstream energy_file(config["beacon_service"]["br_br_energy_file"].as<std::string>());
-    std::string line;
-
-    int counter = 0;
-    while (getline(energy_file, line))
-    {
-        std::vector<std::string> fields;
-        fields = Split(line, '\t', fields);
-
-        int as_no = std::stoi(fields[0]);
-
-        double lat1 = std::stod(fields[1]);
-        double long1 = std::stod(fields[2]);
-
-        double lat2 = std::stod(fields[3]);
-        double long2 = std::stod(fields[4]);
-
-        double energy = std::stod(fields[5]);
-
-        if (real_to_alias_as_no.find(as_no) == real_to_alias_as_no.end())
-        {
-            counter++;
-            continue;
-        }
-
-        uint16_t index = real_to_alias_as_no.at(as_no);
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(index)));
-        NS_ASSERT(as->as_number == index);
-
-        BeaconServer* beacon_server = as->GetBeaconServer();
-
-        if (beacon_server->intra_as_energies.size() == 0)
-        {
-            beacon_server->intra_as_energies.resize(as->GetNDevices());
-            for (uint32_t i = 0; i < as->GetNDevices(); ++i)
-            {
-                beacon_server->intra_as_energies.at(i).resize(as->GetNDevices());
-            }
-        }
-
-        for (uint32_t i = 0; i < as->interfaces_coordinates.size(); ++i)
-        {
-            std::pair<double, double> coordinates1 = as->interfaces_coordinates.at(i);
-            double if1_lat = coordinates1.first;
-            double if1_long = coordinates1.second;
-
-            if (std::abs(if1_lat - lat1) < 0.001 && std::abs(if1_long - long1) < 0.001)
-            {
-                for (uint32_t j = 0; j < as->interfaces_coordinates.size(); ++j)
-                {
-                    std::pair<double, double> coordinates2 = as->interfaces_coordinates.at(j);
-                    double if2_lat = coordinates2.first;
-                    double if2_long = coordinates2.second;
-
-                    if (std::abs(if2_lat - lat2) < 0.001 && std::abs(if2_long - long2) < 0.001)
-                    {
-                        beacon_server->intra_as_energies.at(i).at(j) = energy;
-                    }
-                }
-            }
-        }
-    }
-    energy_file.close();
-    std::cout << counter << std::endl;
-
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
-    {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        for (uint32_t j = 0; j < as->GetBeaconServer()->intra_as_energies.size(); ++j)
-        {
-            for (uint32_t k = 0; k < as->GetBeaconServer()->intra_as_energies.at(j).size(); ++k)
-            {
-                NS_ASSERT(as->GetBeaconServer()->intra_as_energies.at(j).at(k) != 0);
-            }
-        }
-    }
-}
 } // namespace ns3

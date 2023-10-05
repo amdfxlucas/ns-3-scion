@@ -53,6 +53,30 @@ ScionCapableNode::Receive(uint16_t local_if, ScionPacket* packet)
                         local_time);
 }
 
+ ScionCapableNode::ScionCapableNode(uint32_t system_id,
+                     uint16_t isd_number,
+                     uint16_t as_number,
+                     host_addr_t local_address,
+                     double latitude,
+                     double longitude,
+                     ScionAs* as)
+        : Node(system_id),
+         local_address(local_address),
+               latitude(latitude),
+          longitude(longitude),
+          isd_number(isd_number),
+          
+          as_number(as_number),
+         
+    
+          as(as)
+    {
+        ia_addr = (((uint32_t)isd_number) << 16) | ((uint32_t)as_number);
+        next_packet_id = 0;
+        processing_queue_length = 0;
+        local_time = TimeStep(0);
+    }
+
 void
 ScionCapableNode::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time)
 {
@@ -97,6 +121,7 @@ ScionCapableNode::Send(uint16_t local_if, ScionPacket* packet)
    via which it is connected to that AS
    \param local_if ID of an interface local to this Node.
    \param as_if ID of the AS interface through wich this Node is connected via its Interface local_if
+
 */
 void
 ScionCapableNode::AddToIfForwadingTable(uint16_t as_if, uint16_t local_if)

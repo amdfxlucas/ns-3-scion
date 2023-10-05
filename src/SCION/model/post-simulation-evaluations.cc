@@ -26,7 +26,7 @@
 #include "beaconing/green-beaconing.h"
 #include "beaconing/latency-optimized-beaconing.h"
 #include "beaconing/scionlab-algo.h"
-#include "schedule-periodic-events.h"
+
 #include "scion-as.h"
 #include "scion-core-as.h"
 #include "time-server.h"
@@ -43,19 +43,54 @@
 #include <omp.h>
 #include <random>
 #include <set>
+#include "ns3/scion-simulation-context.h"
 
 namespace ns3
 {
 
+ PostSimulationEvaluations::PostSimulationEvaluations( SCIONSimulationContext& ctx )
+        : m_ctx(ctx)
+    {
+        beaconing_period = Time(m_ctx.config["beacon_service"]["period"].as<std::string>());
+        last_beaconing_event_time =
+            Time(m_ctx.config["beacon_service"]["last_beaconing"].as<std::string>());
+        first_beaconing = Time(m_ctx.config["beacon_service"]["first_beaconing"].as<std::string>());
+        expiration_period = Time(m_ctx.config["beacon_service"]["expiration_period"].as<std::string>())
+                                .ToInteger(Time::MIN);
+        beaconing_policy_str = m_ctx.config["beacon_service"]["policy"].as<std::string>();
+
+        REGISTER_FUN(PrintTrafficSentFromCollectorsPerDstPerPeriod)
+        REGISTER_FUN(PrintAllDiscoveredPaths)
+        REGISTER_FUN(PrintAllPathsAttributes)
+        REGISTER_FUN(PrintDistributionOfPathsWithSpecificHopCount)
+        REGISTER_FUN(PrintNoBeaconsPerInterface)
+        REGISTER_FUN(PrintNoBeaconsPerInterfacePerDstOrOpt)
+        REGISTER_FUN(PrintConsumedBwAtEachPeriod)
+        //             REGISTER_FUN(PrintPathQualities)
+        //             REGISTER_FUN(EvaluateSTConnectivity)
+        REGISTER_FUN(PrintMinimumLatencyDist)
+        REGISTER_FUN(PrintPathNoDistribution)
+        REGISTER_FUN(FindMinLatencyToDnsRootServers)
+        REGISTER_FUN(PrintPathPollutionIndex)
+        REGISTER_FUN(PrintLeastPollutingPaths)
+        REGISTER_FUN(PrintBestPerHopPollutionIndexes)
+        //             REGISTER_FUN(PrintTransitTrafficBaseline)
+        REGISTER_FUN(InvestigateAffectedTimeServers)
+        REGISTER_FUN(PrintBeaconStores)
+        REGISTER_FUN(PrintConsumedBwForBeaconing)
+
+        REGISTER_FUN(PrintNumberOfValidBeaconEntriesInBeaconStore)
+    }
+
 void
 PostSimulationEvaluations::DoFinalEvaluations()
 {
-    if (!config["post_eval"])
+    if (!m_ctx.config["post_eval"])
     {
         return;
     }
 
-    const YAML::Node& evals = config["post_eval"];
+    const YAML::Node& evals = m_ctx.config["post_eval"];
     for (auto it = evals.begin(); it != evals.end(); ++it)
     {
         const YAML::Node& eval = *it;
@@ -77,16 +112,16 @@ PostSimulationEvaluations::PrintTrafficSentFromCollectorsPerDstPerPeriod()
     for (int32_t collector : collectors)
     {
         double_t consumed_bwd = 0.0;
-        for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+        for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
         {
-            ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-            if (alias_to_real_as_no.at(as->as_number) == collector)
+            auto as = m_ctx.nodes.at(i);
+            if (m_ctx.AsAliasToReal(as->AS()) == collector)
             {
                 double_t periods = 0.0;
                 for (Time t = Time(0); t < last_beaconing_event_time; t += beaconing_period)
                 {
                     periods += 1.0;
-                    for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+                    for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
                     {
                         consumed_bwd += (double_t)as->GetBeaconServer()
                                             ->GetBytesSentPerInterfacePerPeriod()
@@ -94,7 +129,7 @@ PostSimulationEvaluations::PrintTrafficSentFromCollectorsPerDstPerPeriod()
                                             .at(if_index);
                     }
                 }
-                consumed_bwd = (double_t)consumed_bwd / as->GetNDevices() / periods;
+                consumed_bwd = (double_t)consumed_bwd / as->GetNInterfaces() / periods;
                 break;
             }
         }
@@ -150,8 +185,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
 
         rapidxml::xml_node<>* dns_root_node = dns_root_doc.first_node("root");
         int32_t dst_as_no = std::stoi(dns_root_node->first_node("ASN")->value());
-
-        if (real_to_alias_as_no.find(dst_as_no) == real_to_alias_as_no.end())
+        if( !m_ctx.HasAliasForRealAS(dst_as_no ) )        
         {
             std::cout << root_server_name << ": " << dst_as_no
                       << " The root DNS server's AS is not among the top 2000 real_to_alias_as_no"
@@ -162,8 +196,8 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                      "Coordinates|real_to_alias_as_no on Path"
                   << std::endl;
 
-        uint16_t dst_alias_as_no = real_to_alias_as_no.at(dst_as_no);
-        ScionAs* dst_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(dst_alias_as_no)));
+        uint16_t dst_alias_as_no = m_ctx.RealAsToAlias(dst_as_no);
+        auto dst_as = m_ctx.nodes.at(dst_alias_as_no);
 
         rapidxml::xml_node<>* curr_probe = probes_node->first_node("item");
         while (curr_probe)
@@ -172,7 +206,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
             double probe_lat = std::stod(curr_probe->first_node("Latitude")->value());
             double probe_long = std::stod(curr_probe->first_node("Longitude")->value());
 
-            if (real_to_alias_as_no.find(src_as_no) == real_to_alias_as_no.end())
+            if ( !m_ctx.HasAliasForRealAS(src_as_no ) )
             {
                 curr_probe = curr_probe->next_sibling("item");
                 continue;
@@ -180,8 +214,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
 
             set_of_src_ases.insert(src_as_no);
 
-            ScionAs* src_alias_as_no = dynamic_cast<ScionAs*>(
-                PeekPointer(as_nodes.Get(real_to_alias_as_no.at(src_as_no))));
+            auto src_alias_as_no = m_ctx.nodes.at(m_ctx.AsAliasToReal(src_as_no));
 
             uint16_t last_br = 0;
             double min_latency_to_dst_as = std::numeric_limits<double>::max();
@@ -273,8 +306,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                     std::cout << " ";
                 }
 
-                ScionAs* as =
-                    dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(UPPER_16_BITS(*hop))));
+                auto as = m_ctx.nodes.at(UPPER_16_BITS(*hop));
                 std::pair<double, double> br_coordinates =
                     as->interfaces_coordinates.at(SECOND_UPPER_16_BITS(*hop));
                 std::cout << "(" << br_coordinates.first << ", " << br_coordinates.second << ")";
@@ -294,11 +326,11 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                 {
                     std::cout << " ";
                 }
-                std::cout << alias_to_real_as_no.at(SECOND_LOWER_16_BITS(*hop));
+                std::cout << m_ctx.AsAliasToReal(SECOND_LOWER_16_BITS(*hop));
                 hop_cnt++;
             }
 
-            std::cout << " " << alias_to_real_as_no.at(UPPER_16_BITS(selected_path->at(0)));
+            std::cout << " " << m_ctx.AsAliasToReal( UPPER_16_BITS(selected_path->at(0)) );
 
             std::cout << std::endl;
 
@@ -307,8 +339,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
 
         for (const auto& src_as_no : set_of_src_ases)
         {
-            ScionAs* src_as = dynamic_cast<ScionAs*>(
-                PeekPointer(as_nodes.Get(real_to_alias_as_no.at(src_as_no))));
+            auto src_as = m_ctx.nodes.at(m_ctx.RealAsToAlias(src_as_no));
             const auto& beacons_to_dns_root_as =
                 src_as->GetBeaconServer()->GetBeaconStore().at(dst_alias_as_no);
             for (const auto& len_beacons_pair : beacons_to_dns_root_as)
@@ -333,8 +364,7 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                             std::cout << " ";
                         }
 
-                        ScionAs* as =
-                            dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(UPPER_16_BITS(*hop))));
+                        auto as =m_ctx.nodes.at(UPPER_16_BITS(*hop));
                         std::pair<double, double> br_coordinates =
                             as->interfaces_coordinates.at(SECOND_UPPER_16_BITS(*hop));
                         std::cout << "(" << br_coordinates.first << ", " << br_coordinates.second
@@ -352,11 +382,11 @@ PostSimulationEvaluations::FindMinLatencyToDnsRootServers()
                         {
                             std::cout << " ";
                         }
-                        std::cout << alias_to_real_as_no.at(SECOND_LOWER_16_BITS(*hop));
+                        std::cout << m_ctx.AsAliasToReal(SECOND_LOWER_16_BITS(*hop));
                         hop_cnt++;
                     }
 
-                    std::cout << " " << alias_to_real_as_no.at(UPPER_16_BITS(the_path->at(0)));
+                    std::cout << " " << m_ctx.AsAliasToReal(UPPER_16_BITS(the_path->at(0)));
 
                     std::cout << std::endl;
                 }
@@ -372,11 +402,11 @@ PostSimulationEvaluations::PrintAllDiscoveredPaths()
                  "##############################################################"
               << std::endl;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as =m_ctx.nodes.at(i);
 
-        std::cout << "From: " << alias_to_real_as_no.at(as->as_number) << std::endl;
+        std::cout << "From: " << m_ctx.AsAliasToReal(as->AS()) << std::endl;
 
         as->GetBeaconServer()->InsertPulledBeaconsToBeaconStore();
 
@@ -386,7 +416,7 @@ PostSimulationEvaluations::PrintAllDiscoveredPaths()
             const auto& same_dst_as_beacons = dst_as_beacons_pair.second;
 
             std::cout << "\t"
-                      << "To: " << alias_to_real_as_no.at(dst_as) << std::endl;
+                      << "To: " << m_ctx.AsAliasToReal(dst_as) << std::endl;
 
             for (const auto& beacons_from_same_nbr : same_dst_as_beacons)
             {
@@ -407,9 +437,9 @@ PostSimulationEvaluations::PrintAllDiscoveredPaths()
                         {
                             std::cout << ", ";
                         }
-                        std::cout << alias_to_real_as_no.at(SECOND_LOWER_16_BITS(*hop)) << ":"
+                        std::cout << m_ctx.AsAliasToReal(SECOND_LOWER_16_BITS(*hop)) << ":"
                                   << LOWER_16_BITS(*hop) << ", "
-                                  << alias_to_real_as_no.at(UPPER_16_BITS(*hop)) << ":"
+                                  << m_ctx.AsAliasToReal(UPPER_16_BITS(*hop)) << ":"
                                   << SECOND_UPPER_16_BITS(*hop);
                         hop_cnt++;
                     }
@@ -453,11 +483,11 @@ PostSimulationEvaluations::PrintAllPathsAttributes()
                  "##############################################################"
               << std::endl;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as =m_ctx.nodes.at(i) ;
 
-        std::cout << "From: " << alias_to_real_as_no.at(as->as_number) << std::endl;
+        std::cout << "From: " << m_ctx.AsAliasToReal(as->AS()) << std::endl;
 
         for (const auto& dst_as_beacons_pair : as->GetBeaconServer()->GetBeaconStore())
         {
@@ -465,7 +495,7 @@ PostSimulationEvaluations::PrintAllPathsAttributes()
             const auto& same_dst_as_beacons = dst_as_beacons_pair.second;
 
             std::cout << "\t"
-                      << "To: " << alias_to_real_as_no.at(dst_as) << std::endl;
+                      << "To: " << m_ctx.AsAliasToReal(dst_as) << std::endl;
 
             for (const auto& beacons_from_same_nbr : same_dst_as_beacons)
             {
@@ -524,15 +554,15 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
          time += beaconing_period.ToInteger(Time::MIN))
     {
         std::cout << time << "|";
-        for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+        for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
         {
-            ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+            auto as =m_ctx.nodes.at(i);
             const auto& counters_per_period =
                 as->GetBeaconServer()->GetBeaconsSentPerInterfacePerPeriod().at(time);
-            for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+            for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
             {
                 uint64_t no_sent_beacons = counters_per_period.at(if_index);
-                std::cout << alias_to_real_as_no.at(as->as_number) << ":" << if_index << "="
+                std::cout << m_ctx.AsAliasToReal(as->AS()) << ":" << if_index << "="
                           << no_sent_beacons << ",";
             }
         }
@@ -544,14 +574,14 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
            "#######################################"
         << std::endl;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+        auto as = m_ctx.nodes.at(i);
+        for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
         {
             uint64_t no_sent_beacons =
                 as->GetBeaconServer()->GetBeaconsSentPerInterface().at(if_index);
-            std::cout << alias_to_real_as_no.at(as->as_number) << ":" << if_index << "="
+            std::cout << m_ctx.AsAliasToReal(as->AS()) << ":" << if_index << "="
                       << no_sent_beacons << ",";
         }
     }
@@ -565,11 +595,11 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
 
     std::unordered_map<uint16_t, std::vector<uint32_t>> beacons_sent_per_dst_per_interface;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as = m_ctx.nodes.at(i);
         auto& counters = as->GetBeaconServer()->GetBeaconsSentPerDstPerInterfacePerPeriod();
-        for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+        for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
         {
             auto& counters_per_interface = counters.at(if_index);
             for (const auto& [dst_as, counter] : counters_per_interface)
@@ -587,7 +617,7 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
 
     for (const auto& [dst_as, counters] : beacons_sent_per_dst_per_interface)
     {
-        std::cout << alias_to_real_as_no.at(dst_as) << "|";
+        std::cout << m_ctx.AsAliasToReal(dst_as) << "|";
         for (const auto counter : counters)
         {
             std::cout << counter << ",";
@@ -603,13 +633,13 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
     std::unordered_map<const OptimizationTarget*, std::vector<uint32_t>>
         beacons_sent_per_opt_per_interface;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as = m_ctx.nodes.at(i);
         auto& counters =
             as->GetBeaconServer()->GetPushBasedBeaconsSentPerOptPerInterfacePerPeriod();
 
-        for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+        for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
         {
             auto& counters_per_interface = counters.at(if_index);
             for (const auto& [opt_target, counter] : counters_per_interface)
@@ -627,7 +657,7 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
 
     for (const auto& [opt_target, counters] : beacons_sent_per_opt_per_interface)
     {
-        std::cout << int64_t(opt_target) << "|" << alias_to_real_as_no.at(opt_target->target_as)
+        std::cout << int64_t(opt_target) << "|" << m_ctx.AsAliasToReal(opt_target->target_as)
                   << "|" << opt_target->target_id << "|" << opt_target->target_if_group << "|";
         for (const auto counter : counters)
         {
@@ -643,13 +673,13 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
 
     beacons_sent_per_opt_per_interface.clear();
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as = m_ctx.nodes.at(i);
         auto& counters =
             as->GetBeaconServer()->GetPullBasedBeaconsSentPerOptPerInterfacePerPeriod();
 
-        for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+        for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
         {
             auto& counters_per_interface = counters.at(if_index);
             for (const auto& [opt_target, counter] : counters_per_interface)
@@ -667,8 +697,8 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterfacePerDstOrOpt()
 
     for (const auto& [opt_target, counters] : beacons_sent_per_opt_per_interface)
     {
-        std::cout << int64_t(opt_target) << "|" << alias_to_real_as_no.at(opt_target->target_as)
-                  << "|" << alias_to_real_as_no.at(0xFFFF - opt_target->target_id) << "|";
+        std::cout << int64_t(opt_target) << "|" << m_ctx.AsAliasToReal(opt_target->target_as)
+                  << "|" << m_ctx.AsAliasToReal(0xFFFF - opt_target->target_id) << "|";
         for (const auto counter : counters)
         {
             std::cout << counter << ",";
@@ -687,14 +717,14 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterface()
     std::cout << "link"
               << "\t"
               << "sent beacons" << std::endl;
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+        auto as = m_ctx.nodes.at(i);
+        for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
         {
             uint64_t no_sent_beacons =
                 as->GetBeaconServer()->GetBeaconsSentPerInterface().at(if_index);
-            std::cout << alias_to_real_as_no.at(as->as_number) << ":" << if_index << "\t"
+            std::cout << m_ctx.AsAliasToReal(as->AS()) << ":" << if_index << "\t"
                       << no_sent_beacons << std::endl;
         }
     }
@@ -705,10 +735,10 @@ PostSimulationEvaluations::PrintNoBeaconsPerInterface()
                   << t << " #######################################" << std::endl;
 
         std::map<uint32_t, uint32_t> frequencies_of_sent_beacon_numbers;
-        for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+        for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
         {
-            ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-            for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+            auto as = m_ctx.nodes.at(i);
+            for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
             {
                 uint32_t no_sent_beacons = as->GetBeaconServer()
                                                ->GetBeaconsSentPerInterfacePerPeriod()
@@ -747,10 +777,10 @@ PostSimulationEvaluations::PrintConsumedBwAtEachPeriod()
             << t << " #######################################" << std::endl;
 
         std::map<uint32_t, uint32_t> frequencies_of_consumed_bwd;
-        for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+        for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
         {
-            ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-            for (uint32_t if_index = 0; if_index < as->GetNDevices(); ++if_index)
+            auto as = m_ctx.nodes.at(i);
+            for (uint32_t if_index = 0; if_index < as->GetNInterfaces(); ++if_index)
             {
                 uint32_t consumed_bwd = as->GetBeaconServer()
                                             ->GetBytesSentPerInterfacePerPeriod()
@@ -789,10 +819,10 @@ PostSimulationEvaluations::PrintDistributionOfPathsWithSpecificHopCount()
                      "hop count: "
                   << path_length << "#########################################" << std::endl;
         std::map<uint64_t, uint64_t> frequencies_of_path_counts_per_dst_as_with_certain_length;
-        for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+        for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
         {
             for (const auto& dst_as_beacons_pair :
-                 DynamicCast<ScionAs>(as_nodes.Get(i))->GetBeaconServer()->GetBeaconStore())
+                 m_ctx.nodes.at(i)->GetBeaconServer()->GetBeaconStore())
             {
                 uint64_t number_of_paths_with_certain_length = 0;
                 if (dst_as_beacons_pair.second.find(path_length) ==
@@ -840,10 +870,10 @@ PostSimulationEvaluations::PrintMinimumLatencyDist()
               << std::endl;
 
     std::map<float, int> distribution;
-    for (uint32_t i = 0; i < as_nodes.GetN(); i++)
+    for (uint32_t i = 0; i < m_ctx.GetN(); i++)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        for (uint32_t j = 0; j < as_nodes.GetN(); ++j)
+        auto as = m_ctx.nodes.at(i);
+        for (uint32_t j = 0; j < m_ctx.GetN(); ++j)
         {
             if (i == j)
                 continue;
@@ -891,9 +921,9 @@ PostSimulationEvaluations::PrintPathNoDistribution()
                  "##################################"
               << std::endl;
     std::map<uint32_t, uint32_t> distribution;
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* node = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto node = m_ctx.nodes.at(i);
         for (const auto& dst_count_pair : node->GetBeaconServer()->GetValidBeaconsCountPerDstAs())
         {
             if (distribution.find(dst_count_pair.second) == distribution.end())
@@ -932,11 +962,11 @@ PostSimulationEvaluations::PrintPathPollutionIndex()
               << x << "-least-polluting; Mean of all ##################################"
               << std::endl;
 
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as = m_ctx.nodes.at(i);
 
-        for (uint32_t j = 0; j < as_nodes.GetN(); ++j)
+        for (uint32_t j = 0; j < m_ctx.GetN(); ++j)
         {
             if (i == j)
                 continue;
@@ -1010,7 +1040,7 @@ PostSimulationEvaluations::PrintPathPollutionIndex()
             avg_latency_of_all_paths /= cnt;
             avg_latency_of_x_least_polluting_paths /= top_x_cnt;
 
-            std::cout << alias_to_real_as_no.at(i) << "\t" << alias_to_real_as_no.at(j) << "\t"
+            std::cout << m_ctx.AsAliasToReal(i) << "\t" << m_ctx.AsAliasToReal(j) << "\t"
                       << latency_of_path_with_min_pollution << "\t"
                       << avg_latency_of_x_least_polluting_paths << "\t" << avg_latency_of_all_paths
                       << std::endl;
@@ -1087,19 +1117,19 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
     bgp_paths_file.close();
 
     std::cout.precision(10);
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as1 = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as1 = m_ctx.nodes.at(i);
 
-        for (uint32_t j = 0; j < as_nodes.GetN(); ++j)
+        for (uint32_t j = 0; j < m_ctx.GetN(); ++j)
         {
             if (i == j)
                 continue;
 
-            ScionAs* as2 = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(j)));
+            auto as2 = m_ctx.nodes.at(j);
 
-            if (bgp_path_no.find(std::make_pair(alias_to_real_as_no.at(as1->as_number),
-                                                alias_to_real_as_no.at(as2->as_number))) ==
+            if (bgp_path_no.find(std::make_pair(m_ctx.AsAliasToReal(as1->AS()),
+                                                m_ctx.AsAliasToReal(as2->AS()))) ==
                 bgp_path_no.end())
             {
                 continue;
@@ -1108,9 +1138,8 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
             std::map<double, std::map<double, std::set<Beacon*>>>
                 sorted_beacons_by_pollution_by_latency =
                     std::map<double, std::map<double, std::set<Beacon*>>>();
-            SortBeaconsByPollutionByLatency(as_nodes,
-                                            as1,
-                                            as2,
+            SortBeaconsByPollutionByLatency(  as1.get(),
+                                            as2.get(),
                                             beaconing_policy_str,
                                             sorted_beacons_by_pollution_by_latency);
 
@@ -1129,8 +1158,8 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
             double avg_latency_all = 0;
 
             int counter = 0;
-            int n = bgp_path_no.at(std::make_pair(alias_to_real_as_no.at(as1->as_number),
-                                                  alias_to_real_as_no.at(as2->as_number)));
+            int n = bgp_path_no.at(std::make_pair(m_ctx.AsAliasToReal(as1->AS()),
+                                                  m_ctx.AsAliasToReal(as2->AS())));
 
             for (const auto& [pollution, latency_2_set_of_beacons_map] :
                  sorted_beacons_by_pollution_by_latency)
@@ -1184,8 +1213,8 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
                 avg_latency_top_n /= n;
             }
 
-            std::cout << alias_to_real_as_no.at(as1->as_number) << "|"
-                      << alias_to_real_as_no.at(as2->as_number) << "|" << min_pollution << "|"
+            std::cout << m_ctx.AsAliasToReal(as1->AS()) << "|"
+                      << m_ctx.AsAliasToReal(as2->AS()) << "|" << min_pollution << "|"
                       << avg_pollution_top_5 << "|" << avg_pollution_top_n << "|"
                       << avg_pollution_all << "|" << latency_of_min_pollution << "|"
                       << avg_latency_top_5 << "|" << avg_latency_top_n << "|" << avg_latency_all
@@ -1200,9 +1229,9 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
                 {
                     std::cout << ", ";
                 }
-                std::cout << alias_to_real_as_no.at(SECOND_LOWER_16_BITS(*hop)) << ":"
+                std::cout << m_ctx.AsAliasToReal(SECOND_LOWER_16_BITS(*hop)) << ":"
                           << LOWER_16_BITS(*hop) << ", "
-                          << alias_to_real_as_no.at(UPPER_16_BITS(*hop)) << ":"
+                          << m_ctx.AsAliasToReal(UPPER_16_BITS(*hop)) << ":"
                           << SECOND_UPPER_16_BITS(*hop);
                 hop_cnt++;
             }
@@ -1217,8 +1246,7 @@ PostSimulationEvaluations::PrintLeastPollutingPaths()
                 {
                     std::cout << ", ";
                 }
-                ScionAs* hop_as =
-                    dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(SECOND_LOWER_16_BITS(*hop))));
+                auto hop_as =m_ctx.nodes.at(SECOND_LOWER_16_BITS(*hop));
                 std::cout << "(" << hop_as->interfaces_coordinates.at(LOWER_16_BITS(*hop)).first
                           << "," << hop_as->interfaces_coordinates.at(LOWER_16_BITS(*hop)).second
                           << ")";
@@ -1237,9 +1265,9 @@ PostSimulationEvaluations::PrintBestPerHopPollutionIndexes()
         << "############################################### BestPerHopLatencyAndPollutionIndexes "
            "########################################################################"
         << std::endl;
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as = m_ctx.nodes.at(i);
         for (const auto& the_ifaces_list1 : as->interfaces_per_neighbor_as)
         {
             uint16_t the_neighbor1 = the_ifaces_list1.first;
@@ -1259,9 +1287,9 @@ PostSimulationEvaluations::PrintBestPerHopPollutionIndexes()
                         }
                     }
                 }
-                std::cout << alias_to_real_as_no.at(the_neighbor1) << " "
-                          << alias_to_real_as_no.at(as->as_number) << " "
-                          << alias_to_real_as_no.at(the_neighbor2) << "\t"
+                std::cout << m_ctx.AsAliasToReal(the_neighbor1) << " "
+                          << m_ctx.AsAliasToReal(as->AS()) << " "
+                          << m_ctx.AsAliasToReal(the_neighbor2) << "\t"
                           << min_latency *
                                  ((GreenBeaconing*)as->GetBeaconServer())->GetDirtyEnergyRatio()
                           << "\t" << min_latency << "\t" << std::endl;
@@ -1273,13 +1301,13 @@ PostSimulationEvaluations::PrintBestPerHopPollutionIndexes()
 void
 PostSimulationEvaluations::PrintConsumedBwForBeaconing()
 {
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as_node = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+        auto as_node = m_ctx.nodes.at(i);
         for (const auto& el : as_node->GetBeaconServer()->GetBytesSentPerInterfacePerPeriod())
         {
             const auto& vector = el.second;
-            std::cerr << "\nNode: " << real_to_alias_as_no.at(as_node->as_number) << " at time 0."
+            std::cerr << "\nNode: " << m_ctx.RealAsToAlias(as_node->AS()) << " at time 0."
                       << std::endl;
             for (const auto& element : vector)
             {
@@ -1292,10 +1320,10 @@ PostSimulationEvaluations::PrintConsumedBwForBeaconing()
 void
 PostSimulationEvaluations::PrintBeaconStores()
 {
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as_node = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        std::cout << "From: " << real_to_alias_as_no.at(as_node->as_number) << std::endl;
+        auto as_node = m_ctx.nodes.at(i);
+        std::cout << "From: " << m_ctx.RealAsToAlias(as_node->AS()) << std::endl;
 
         for (const auto& dst_as_beacons_pair : as_node->GetBeaconServer()->GetBeaconStore())
         {
@@ -1303,7 +1331,7 @@ PostSimulationEvaluations::PrintBeaconStores()
             const auto& same_dst_as_beacons = dst_as_beacons_pair.second;
 
             std::cout << "\t"
-                      << "To: " << real_to_alias_as_no.at(dst_as) << std::endl;
+                      << "To: " << m_ctx.RealAsToAlias(dst_as) << std::endl;
 
             for (const auto& beacons_from_same_nbr : same_dst_as_beacons)
             {
@@ -1317,17 +1345,17 @@ PostSimulationEvaluations::PrintBeaconStores()
                               << "\t";
                     uint32_t hop_cnt = 0;
                     std::vector<link_information>::reverse_iterator hop =
-                        the_beacon->the_path.rbegin();
+                        the_beacon->the_path.rbegin();  // the receiver ( we/our AS ) are the last hop in the beacon
                     for (; hop != the_beacon->the_path.rend(); ++hop)
                     {
                         if (hop_cnt != 0)
                         {
                             std::cout << ", ";
                         }
-                        std::cout << real_to_alias_as_no.at(SECOND_LOWER_16_BITS(*hop)) << ":"
-                                  << LOWER_16_BITS(*hop) << ", "
-                                  << real_to_alias_as_no.at(UPPER_16_BITS(*hop)) << ":"
-                                  << SECOND_UPPER_16_BITS(*hop);
+                        std::cout << m_ctx.RealAsToAlias(SECOND_LOWER_16_BITS(*hop)) << ":" // receiver as
+                                  << LOWER_16_BITS(*hop) << ", " // ing if
+                                  << m_ctx.RealAsToAlias(UPPER_16_BITS(*hop)) << ":" // sender as
+                                  << SECOND_UPPER_16_BITS(*hop); // eg if
                         hop_cnt++;
                     }
                     std::cout << "; ";
@@ -1346,10 +1374,10 @@ PostSimulationEvaluations::PrintBeaconStores()
 void
 PostSimulationEvaluations::PrintNumberOfValidBeaconEntriesInBeaconStore()
 {
-    for (uint32_t i = 0; i < as_nodes.GetN(); ++i)
+    for (uint32_t i = 0; i < m_ctx.GetN(); ++i)
     {
-        ScionAs* as_node = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
-        std::cerr << "Beacon Store on Node: " << real_to_alias_as_no.at(as_node->as_number)
+        auto as_node = m_ctx.nodes.at(i);
+        std::cerr << "Beacon Store on Node: " << m_ctx.RealAsToAlias(as_node->AS())
                   << std::endl;
         for (const auto& src_as_beacons_pair : as_node->GetBeaconServer()->GetBeaconStore())
         {
@@ -1370,7 +1398,7 @@ PostSimulationEvaluations::PrintNumberOfValidBeaconEntriesInBeaconStore()
                     }
                 }
             }
-            std::cerr << "\t" << real_to_alias_as_no.at(src_as) << ":" << count << std::endl;
+            std::cerr << "\t" << m_ctx.RealAsToAlias(src_as) << ":" << count << std::endl;
         }
         std::cerr << std::endl;
     }
@@ -1392,11 +1420,11 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
         pre_calculated_inherently_malicious_ases;
     std::unordered_set<ia_t> inherently_malicious_ases;
     std::set<ia_t> benign_ases;
-    uint32_t num_all_ases = as_nodes.GetN();
+    uint32_t num_all_ases = m_ctx.GetN();
 
     for (uint32_t i = 0; i < num_all_ases; ++i)
     {
-        ia_t ia_addr = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)))->ia_addr;
+        ia_t ia_addr = m_ctx.nodes.at(i)->IA();
         benign_ases.insert(ia_addr);
     }
 
@@ -1446,11 +1474,11 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
 #pragma omp parallel for
         for (uint32_t i = 0; i < num_all_ases; ++i)
         {
-            ScionAs* scion_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+            auto scion_as = m_ctx.nodes.at(i);
             TimeServer* time_server = dynamic_cast<TimeServer*>(scion_as->GetHost(2));
 
-            time_server->path_selection = path_selection.first;
-            time_server->number_of_paths_to_use_for_global_sync = path_selection.second;
+            time_server->SetPathSelection( path_selection.first );
+            time_server->SetNofPathsForGlobSync( path_selection.second );
 
             time_server->ConstructSetOfSelectedPaths();
         }
@@ -1470,9 +1498,9 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
 #pragma omp parallel for
                     for (uint32_t i = 0; i < num_all_ases; ++i)
                     {
-                        ScionAs* scion_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+                        auto scion_as = m_ctx.nodes.at(i);
 
-                        if (inherently_and_transitive_malicious.find(scion_as->ia_addr) !=
+                        if (inherently_and_transitive_malicious.find(scion_as->IA()) !=
                             inherently_and_transitive_malicious.end())
                         {
                             continue;
@@ -1481,10 +1509,10 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
                         uint32_t number_of_affected_dst = 0;
                         TimeServer* time_server = dynamic_cast<TimeServer*>(scion_as->GetHost(2));
 
-                        assert(time_server->set_of_selected_paths.size() >= as_nodes.GetN() - 1);
+                        assert(time_server->GetSetOfSelectedPaths().size() >= m_ctx.GetN() - 1);
 
                         for (const auto& [dst_ia, selected_paths_to_dst] :
-                             time_server->set_of_selected_paths)
+                             time_server->GetSetOfSelectedPaths())
                         {
                             assert(selected_paths_to_dst.size() != 0);
 
@@ -1493,7 +1521,7 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
                             {
                                 uint32_t path_len = path_seg->hops.size();
 
-                                assert(GET_HOP_IA(path_seg->hops.at(0)) == scion_as->ia_addr);
+                                assert(GET_HOP_IA(path_seg->hops.at(0)) == scion_as->IA());
                                 assert(GET_HOP_IA(path_seg->hops.at(path_len - 1)) == dst_ia);
                                 assert(path_len >= 2);
                                 bool path_affected = false;
@@ -1530,15 +1558,15 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
 
                         if (3 * number_of_affected_dst + 1 > num_all_ases)
                         {
-                            time_server->affected_by_malicious_ases = true;
+                            time_server->SetAffectedByMalicious( true);
                         }
                     }
 
                     for (uint32_t i = 0; i < num_all_ases; ++i)
                     {
-                        ScionAs* scion_as = dynamic_cast<ScionAs*>(PeekPointer(as_nodes.Get(i)));
+                        auto scion_as = m_ctx.nodes.at(i);
 
-                        if (inherently_and_transitive_malicious.find(scion_as->ia_addr) !=
+                        if (inherently_and_transitive_malicious.find(scion_as->IA()) !=
                             inherently_and_transitive_malicious.end())
                         {
                             continue;
@@ -1546,10 +1574,10 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
 
                         TimeServer* time_server = dynamic_cast<TimeServer*>(scion_as->GetHost(2));
 
-                        if (time_server->affected_by_malicious_ases)
+                        if (time_server->IsAffectedByMalicous())
                         {
-                            inherently_and_transitive_malicious.insert(scion_as->ia_addr);
-                            time_server->affected_by_malicious_ases = false;
+                            inherently_and_transitive_malicious.insert(scion_as->IA());
+                            time_server->SetAffectedByMalicious( false );
                             c = true;
                         }
                     }
@@ -1566,8 +1594,7 @@ PostSimulationEvaluations::InvestigateAffectedTimeServers()
 }
 
 void
-SortBeaconsByPollutionByLatency(
-    NodeContainer& as_nodes,
+SortBeaconsByPollutionByLatency(    
     ScionAs* as1,
     ScionAs* as2,
     std::string beaconing_policy_str,
@@ -1578,7 +1605,7 @@ SortBeaconsByPollutionByLatency(
         const std::vector<std::multimap<ld, Beacon*>>& sorted_beacons_per_ing_if =
             ((GreenBeaconing*)as1->GetBeaconServer())
                 ->GetBeaconsSortedByPollution()
-                .at(as2->as_number);
+                .at(as2->AS());
 
         for (const auto& sorted_beacons : sorted_beacons_per_ing_if)
         {

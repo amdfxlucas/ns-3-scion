@@ -549,7 +549,7 @@ UdpL4Protocol::GetDownTarget6() const
 }
 
 bool
-UdpL4Protocol::RemoveSocket(Ptr<UdpSocketImpl> socket)
+UdpL4Protocol::RemoveSocket(Ptr<UdpSocket> socket)
 {
     NS_LOG_FUNCTION(this << socket);
 

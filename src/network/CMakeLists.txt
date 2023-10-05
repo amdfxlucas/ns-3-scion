@@ -150,12 +150,21 @@ set(header_files
     utils/timestamp-tag.h
 )
 
+include_directories(   /usr/local/include/neo/buffer /usr/local/include/neo/fun /usr/local/include/neo /usr/local/include /usr/local/include/neo/fun/neo )
+
+
+list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake/neo")
+find_package(neo-buffer CONFIG REQUIRED )
+find_package(fun  CONFIG REQUIRED )
+
 build_lib(
   LIBNAME network
   SOURCE_FILES ${source_files}
   HEADER_FILES ${header_files}
   LIBRARIES_TO_LINK ${libcore}
                     ${libstats}
+                    neo::neo-buffer
+                    neo::fun
   TEST_SOURCES
     test/bit-serializer-test.cc
     test/buffer-test.cc

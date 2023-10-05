@@ -27,12 +27,16 @@
 #include "scion-packet.h"
 
 #include "ns3/simulator.h"
+#include <yaml-cpp/yaml.h>
+
+#include "ns3/scion-simulation-context.h"
 
 #include <any>
 #include <fstream>
 #include <functional>
 #include <unordered_map>
-#include <yaml-cpp/yaml.h>
+
+
 
 template <typename Ret>
 struct AnyCallable
@@ -69,36 +73,6 @@ struct AnyCallable
     std::any m_any;
 };
 
-template <int N>
-struct my_placeholder
-{
-    static my_placeholder ph;
-};
-
-template <int N>
-my_placeholder<N> my_placeholder<N>::ph;
-
-namespace std
-{
-template <int N>
-struct is_placeholder<::my_placeholder<N>> : std::integral_constant<int, N>
-{
-};
-} // namespace std
-
-template <class R, class... Types, class U, int... indices>
-std::function<R(Types...)>
-BindFactory(R (U::*f)(Types...), U* val, std::integer_sequence<int, indices...> /*seq*/)
-{
-    return std::bind(f, val, my_placeholder<indices + 1>::ph...);
-}
-
-template <class R, class... Types, class U>
-std::function<R(Types...)>
-FunctionFactory(R (U::*f)(Types...), U* val)
-{
-    return BindFactory(f, val, std::make_integer_sequence<int, sizeof...(Types)>());
-}
 
 namespace ns3
 {
@@ -106,31 +80,22 @@ namespace ns3
 class UserDefinedEvents
 {
   public:
-    UserDefinedEvents(YAML::Node& config,
-                      NodeContainer& as_nodes,
-                      std::map<int32_t, uint16_t>& real_to_alias_as_no,
-                      std::map<uint16_t, int32_t>& alias_to_real_as_no)
-        : config(config),
-          as_nodes(as_nodes),
-          real_to_alias_as_no(real_to_alias_as_no),
-          alias_to_real_as_no(alias_to_real_as_no)
+    UserDefinedEvents( SCIONSimulationContext& ctx                     )
+        : m_ctx(ctx)          
     {
-        if (!config["events_file"])
+        if (!m_ctx.config["events_file"])
         {
             this->~UserDefinedEvents();
             return;
         }
 
         ConstructFuncMap();
-        ReadAndScheduleUserDefinedEvents(config["events_file"].as<std::string>());
+        ReadAndScheduleUserDefinedEvents( m_ctx.config["events_file"].as<std::string>());
     }
 
   private:
-    YAML::Node& config;
-    NodeContainer& as_nodes;
-    std::map<int32_t, uint16_t>& real_to_alias_as_no;
-    std::map<uint16_t, int32_t>& alias_to_real_as_no;
-
+  SCIONSimulationContext& m_ctx;
+ 
     std::unordered_map<std::string, AnyCallable<void>> function_name_to_function;
 
     void ConstructFuncMap();

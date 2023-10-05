@@ -82,6 +82,8 @@ union Payload {
 struct ScionPacket
 {
   public:
+
+  bool IsCurrentHopAtEndOfSegment()const{ return !path_reversed && cur_hopf ==path.at(curr_inf)->hops.size() - 1;}
     Time timestamp;
 
     ScionCapableNode* const
@@ -99,7 +101,8 @@ struct ScionPacket
 
     host_addr_t src_host, dst_host;
 
-    uint16_t curr_inf, cur_hopf;
+    uint16_t curr_inf; // index of the current info field,
+    uint16_t cur_hopf; // the index of the current hop field,
 
     uint16_t size; // size in bytes
 

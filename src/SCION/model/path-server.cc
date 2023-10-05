@@ -31,15 +31,30 @@ namespace ns3
 {
 NS_LOG_COMPONENT_DEFINE("PathServer");
 
+  PathServer::PathServer(uint32_t system_id,
+               uint16_t isd_number,
+               uint16_t as_number,
+               host_addr_t local_address,
+               double latitude,
+               double longitude,
+               ScionAs* as)
+        : ScionCapableNode(system_id, isd_number, as_number, local_address, latitude, longitude, as)
+    {
+      if( dynamic_cast<ScionCoreAs*>( GetAs() ) )
+      {  set_of_all_core_ases.insert( Ia() );
+      }
+    }
+
+
 void
 PathServer::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time receive_time)
 {
     // is this request destined for us 
-    NS_ASSERT(packet->dst_ia == ia_addr && packet->dst_host == GetLocalAddress() );
+    NS_ASSERT(packet->dst_ia == Ia() && packet->dst_host == GetLocalAddress() );
     ScionCapableNode::ProcessReceivedPacket(local_if, packet, receive_time);
 
     if (packet->payload_type == PayloadType::PATH_REQ_FROM_HOST &&
-        packet->src_ia == ia_addr /* are we responsible for this host's requests */ )
+        packet->src_ia == Ia() /* are we responsible for this host's requests */ )
     {
         PathReqFromHost path_req_from_host = packet->payload.path_req_from_host;
         ProcessLocalHostRequestForPath(path_req_from_host.seg_type,
@@ -52,7 +67,7 @@ PathServer::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time r
     }
 
     if (packet->payload_type == PayloadType::REQ_FOR_LIST_OF_ALL_CORE_ASES &&
-        packet->src_ia == ia_addr)
+        packet->src_ia == Ia())
     {
         NS_LOG_FUNCTION("PthSrv rcv REQ_FOR_LIST_OF_ALL_CORE_ASES from " << packet->src_host);
         ReturnListOfAllCoreAses(packet->src_host);
@@ -61,6 +76,9 @@ PathServer::ProcessReceivedPacket(uint16_t local_if, ScionPacket* packet, Time r
     }
 }
 
+/*!
+  \param key the key of the beacon the pathSegment was extracted from
+*/
 void
 PathServer::RegisterCorePathSegment(PathSegment& path_segment, std::string key)
 {
@@ -147,6 +165,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
         return; // TODO
     }
 
+    // we are a pathserver in a NonCore AS and are asked for a coreSegment
     if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) == NULL)
     {
         NS_LOG_FUNCTION("non-core as received core path segment request from "
@@ -162,7 +181,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
             return; // TODO
         }
     }
-
+    // we are a pathServer in a CoreAS  and are asked for a coreSegment
     if (path_type == PathSegmentType::CORE_SEG && dynamic_cast<ScionCoreAs*>(GetAs()) != NULL)
     {
         NS_LOG_FUNCTION("Core AS received core path segment request from "
@@ -174,13 +193,13 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
             for (const auto& [registered_dst_ia, paths_to_dst_ia] : registered_core_segments)
             {
                 NS_LOG_FUNCTION(GET_ISDN(registered_dst_ia)
-                                << ":" << GET_ASN(registered_dst_ia) << " " << GET_ISDN(ia_addr)
-                                << ":" << GET_ASN(ia_addr));
-                if (GET_ISDN(registered_dst_ia) == isd_number)
+                                << ":" << GET_ASN(registered_dst_ia) << " " << GET_ISDN(Ia())
+                                << ":" << GET_ASN(Ia()));
+                if (GET_ISDN(registered_dst_ia) == Isd() )
                 {
                     SendRegisteredPathToLocalHost(host_addr,
                                                   PathSegmentType::CORE_SEG,
-                                                  ia_addr,
+                                                  Ia(),
                                                   registered_dst_ia,
                                                   paths_to_dst_ia);
                 }
@@ -197,7 +216,7 @@ PathServer::ProcessLocalHostRequestForPath(PathSegmentType path_type,
                 {
                     SendRegisteredPathToLocalHost(host_addr,
                                                   PathSegmentType::CORE_SEG,
-                                                  ia_addr,
+                                                  Ia(),
                                                   registered_dst_ia,
                                                   paths_to_dst_ia);
                 }
@@ -220,7 +239,7 @@ PathServer::SendRegisteredPathToLocalHost(host_addr_t host_addr,
     payload.registered_paths_from_local_ps.dst_ia = dst_ia;
     payload.registered_paths_from_local_ps.registered_path_segments = paths_to_dst_ia;
 
-    ScionPacket* packet = CreateScionPacket(payload, payload_type, ia_addr, host_addr, 0);
+    ScionPacket* packet = CreateScionPacket(payload, payload_type, Ia(), host_addr, 0);
     SendScionPacket(packet);
 }
 
@@ -232,7 +251,7 @@ PathServer::ReturnListOfAllCoreAses(host_addr_t host_addr)
     Payload payload;
     payload.list_of_all_ases.set_of_all_ases = &set_of_all_core_ases;
 
-    ScionPacket* packet = CreateScionPacket(payload, payload_type, ia_addr, host_addr, 0);
+    ScionPacket* packet = CreateScionPacket(payload, payload_type, Ia(), host_addr, 0);
     SendScionPacket(packet);
 }
 } // namespace ns3

@@ -57,7 +57,7 @@ void
 Baseline::DisseminateBeacons(NeighbourRelation relation)
 {
     uint32_t neighbors_cnt = GetAs()->neighbors.size();
-    omp_set_num_threads(num_core);
+    omp_set_num_threads(SCIONSimulationContext::getInstance().NumCores());
 #pragma omp parallel for
     for (uint32_t i = 0; i < neighbors_cnt; ++i) // do range for loop over neighbors here
     {
@@ -66,8 +66,8 @@ Baseline::DisseminateBeacons(NeighbourRelation relation)
             continue;
         }
 
-        uint16_t& remote_as_no = GetAs()->neighbors.at(i).first;
-        const std::vector<uint16_t>& interfaces = GetAs()->interfaces_per_neighbor_as.at(remote_as_no);
+        auto& remote_as_no = GetAs()->neighbors.at(i).first;
+        const auto& interfaces = GetAs()->interfaces_per_neighbor_as.at(remote_as_no);
 
         for (const auto& dst_as_beacons_pair : beacon_store)
         {
@@ -77,7 +77,9 @@ Baseline::DisseminateBeacons(NeighbourRelation relation)
             uint32_t sent_count = 0;
 
             if (remote_as_no == dst_as_no)
-            {
+            {   // this is to prevent loops, is it ?!
+                // dont reflect a beacon back to an AS, from which we received it
+                // in the first place
                 continue;
             }
 
@@ -122,10 +124,10 @@ Baseline::DisseminateBeacons(NeighbourRelation relation)
                     // Iterate over all the valid interfaces of this remote AS and send the beacons
                     for (const auto& egress_interface_no : interfaces)
                     {
-                        std::pair<uint16_t, ScionAs*> remote_as_if_pair =
+                        std::pair<ASIFID_t, ScionAs*> remote_as_if_pair =
                             GetAs()->GetRemoteAsInfo(egress_interface_no);
 
-                        uint16_t remote_ingress_if_no = remote_as_if_pair.first;
+                        ASIFID_t remote_ingress_if_no = remote_as_if_pair.first;
                         ScionAs* remote_as = remote_as_if_pair.second;
 
                         ld latency = the_beacon->Latency() +

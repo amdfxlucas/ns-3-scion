@@ -38,20 +38,7 @@ class ScionCapableNode : public Node
                      host_addr_t local_address,
                      double latitude,
                      double longitude,
-                     ScionAs* as)
-        : Node(system_id),
-          isd_number(isd_number),
-          as_number(as_number),
-          local_address(local_address),
-          latitude(latitude),
-          longitude(longitude),
-          as(as)
-    {
-        ia_addr = (((uint32_t)isd_number) << 16) | ((uint32_t)as_number);
-        next_packet_id = 0;
-        processing_queue_length = 0;
-        local_time = TimeStep(0);
-    }
+                     ScionAs* as);
 
     void AddToIfForwadingTable(uint16_t as_if, uint16_t local_if);
     void AddToAddressForwardingTable(host_addr_t addr, uint16_t local_if);
@@ -80,23 +67,21 @@ class ScionCapableNode : public Node
     uint16_t Ia() const {return ia_addr;}
 
   protected:
-    uint16_t isd_number;
-    uint16_t as_number;
 
-    ia_t ia_addr;
 
     host_addr_t local_address;
 
     double latitude;
     double longitude;
 
-    ScionAs* as;
+    
 
     // Queueing delay is modeled by the processing and send scheduling queues, but no drop function
     // is implemented yet
     std::vector<Time> propagation_delays;
     std::vector<Time> transmission_delays; // In picoseconds/byte
-    Time processing_delay, processing_throughput_delay;
+    Time processing_delay;
+    Time processing_throughput_delay;
 
     std::vector<uint32_t> transmission_queues_lengths; // In bytes
     uint32_t processing_queue_length;                  // In packets
@@ -106,6 +91,7 @@ class ScionCapableNode : public Node
     Time local_time;
 
     // maps AS interface IDs to local interface IDs of this Node, via which it is connected to that AS
+    // then type should be <AS_t, localIFID_t>
     std::unordered_map<uint16_t, uint16_t> forwarding_table_to_other_as_ifaces;
 
     std::unordered_map<host_addr_t, uint16_t> forwarding_table_to_addresses_inside_as;
@@ -139,6 +125,14 @@ class ScionCapableNode : public Node
         const std::vector<uint8_t>& shortcut_hopfs = std::vector<uint8_t>());
 
     void ReturnScionPacket(ScionPacket* packet);
+
+
+private:
+    uint16_t isd_number;
+    uint16_t as_number;
+
+    ia_t ia_addr;
+    ScionAs* as;
 };
 } // namespace ns3
 #endif // SCION_SIMULATOR_SCION_CAPABLE_NODE_H

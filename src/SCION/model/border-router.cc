@@ -67,7 +67,7 @@ PrepareInterDomainPacket(ScionPacket* packet)
     }
     else if (!packet->path_reversed &&
              packet->cur_hopf == packet->path.at(packet->curr_inf)->hops.size() - 1)
-    {
+    {   // this border router is at the end of a segment
         packet->curr_inf++;
         packet->cur_hopf = 0;
     }
@@ -143,8 +143,8 @@ BorderRouter::ProcessReceivedPacket(uint16_t if_rcv, ScionPacket* packet, Time r
     NS_ASSERT(packet->curr_inf < packet->path.size());
 
     uint64_t hopf = packet->path.at(packet->curr_inf)->hops.at(packet->cur_hopf);
-    NS_ASSERT(GET_HOP_ISD(hopf) == isd_number);
-    NS_ASSERT(GET_HOP_AS(hopf) == as_number);
+    NS_ASSERT(GET_HOP_ISD(hopf) == Isd());
+    NS_ASSERT(GET_HOP_AS(hopf) == As());
     bool reverse = packet->path_reversed ^ packet->path.at(packet->curr_inf)->reverse;
 
     uint16_t as_if_to_send;

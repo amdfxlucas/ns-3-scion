@@ -22,8 +22,14 @@
 #include "ns3/assert.h"
 
 #include <ostream>
+#include <utility>
+#include <concepts>
+#include <iterator>
+
 #include <stdint.h>
+#include <compare>
 #include <vector>
+#include "neo/byte_pointer.hpp"
 
 #define BUFFER_FREE_LIST 1
 
@@ -93,12 +99,81 @@ namespace ns3
 class Buffer
 {
   public:
+
+    using difference_type   = int;
+    using size_type     = size_t;
+    using value_type        = std::byte;
+    using reference         = std::byte&;
+    using const_reference = const std::byte&;
+    using pointer           = std::byte*;
+    using const_pointer = const std::byte*;
+
     /**
      * \brief iterator in a Buffer instance
      */
     class Iterator
     {
+        std::byte zero{0};
       public:
+
+    using iterator_concept  = std::random_access_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag; // oder sogar contigous
+    using difference_type   = int;
+    using value_type        = std::byte;
+    using reference         = std::byte&;
+    using pointer           = std::byte*;
+    
+    friend std::strong_ordering operator<=> ( const Iterator& , const Iterator& );
+     /*   std::strong_ordering operator<=>(const Iterator& other)const
+      {          
+        NS_ASSERT(m_data == other.m_data);
+        return  m_current <=> other.m_current;
+      }*/
+        bool operator==(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current==o.m_current; }
+        bool operator!=(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current!=o.m_current; }
+        bool operator<(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current<o.m_current; }
+        bool operator>(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current>o.m_current; }
+        bool operator>=(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current>=o.m_current; }
+        bool operator<=(const Iterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current<=o.m_current; }
+
+        Iterator operator+( difference_type delta )const { auto tmp{*this}; tmp.Next(delta); return tmp; }
+        Iterator operator-( difference_type delta)const { auto tmp{*this}; tmp.Prev(delta); return tmp; }
+        Iterator& operator+=(difference_type delta ){ Next(delta); return *this;}
+        Iterator& operator-=(difference_type delta ){ Prev(delta); return *this; }
+        difference_type operator-( const Iterator& o )const { NS_ASSERT(m_data == o.m_data); return m_current-o.m_current; }
+        Iterator& operator--(){Prev(); return *this;}
+        Iterator operator--(int){ auto tmp{*this}; Prev(); return tmp; }
+        Iterator& operator++(){Next(); return *this;}
+        Iterator operator++(int){ auto tmp{*this}; Next(); return tmp;  }
+
+        std::byte& operator*()
+        {
+            NS_ASSERT_MSG(m_current >= m_dataStart && m_current < m_dataEnd, GetReadErrorMessage());
+
+            if (m_current < m_zeroStart)
+            {
+                return *neo::byte_pointer(&(m_data[m_current]));
+            }
+            else if (m_current < m_zeroEnd)
+            {
+                return zero;
+            }
+            else
+            {
+                return *neo::byte_pointer(&(m_data[m_current - (m_zeroEnd - m_zeroStart)]));
+            }
+        };
+        std::byte& operator*() const{ return const_cast<Iterator*>(this)->operator*();};
+        std::byte& operator[] ( difference_type n) const { auto tmp{*this + n }; return *tmp; };
+/*
+using X = std::iter_rvalue_reference_t<const Iterator>;
+using Y =  std::iter_rvalue_reference_t<Iterator>;
+
+using V = std::iter_reference_t<const Iterator>;
+using W =  std::iter_reference_t< Iterator>;
+*/
+// static_assert( std::equality_comparable<Buffer::Iterator> );
+
         inline Iterator();
         /**
          * go forward by one byte
@@ -382,7 +457,7 @@ class Buffer
          */
         uint32_t GetRemainingSize() const;
 
-      private:
+      protected:
         /// Friend class
         friend class Buffer;
         /**
@@ -485,6 +560,114 @@ class Buffer
         uint8_t* m_data;
     };
 
+
+
+
+    class ConstIterator : public Iterator
+    {
+        std::byte  zero{0};
+    public:
+    
+    using iterator_concept  = std::random_access_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag; // oder sogar contigous
+    using difference_type   = int;
+    using value_type        = const std::byte;
+    using reference         = const std::byte&;
+    using pointer           = const std::byte*; 
+  
+    friend std::strong_ordering operator<=> ( const ConstIterator& , const ConstIterator& );
+     /*   std::strong_ordering operator<=>(const Iterator& other)const
+      {          
+        NS_ASSERT(m_data == other.m_data);
+        return  m_current <=> other.m_current;
+      }*/
+        bool operator==(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current==o.m_current; }
+        bool operator!=(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current!=o.m_current; }
+        bool operator<(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current<o.m_current; }
+        bool operator>(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current>o.m_current; }
+        bool operator>=(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current>=o.m_current; }
+        bool operator<=(const ConstIterator& o)const{NS_ASSERT(m_data == o.m_data); return m_current<=o.m_current; }
+
+        ConstIterator operator+( difference_type delta )const { auto tmp{*this}; tmp.Next(delta); return tmp; }
+        ConstIterator operator-( difference_type delta)const { auto tmp{*this}; tmp.Prev(delta); return tmp; }
+        ConstIterator& operator+=(difference_type delta ){ Next(delta); return *this;}
+        ConstIterator& operator-=(difference_type delta ){ Prev(delta); return *this; }
+        difference_type operator-( const ConstIterator& o )const { NS_ASSERT(m_data == o.m_data); return m_current-o.m_current; }
+        ConstIterator& operator--(){Prev(); return *this;}
+        ConstIterator operator--(int){ auto tmp{*this}; Prev(); return tmp; }
+        ConstIterator& operator++(){Next(); return *this;}
+        ConstIterator operator++(int){ auto tmp{*this}; Next(); return tmp; }        
+        const std::byte& operator*()
+        {// return PeekU8();
+          NS_ASSERT_MSG(m_current >= m_dataStart && m_current < m_dataEnd, GetReadErrorMessage());
+
+    if (m_current < m_zeroStart)
+    {
+        
+        return *neo::byte_pointer(  &(m_data[m_current] ) );
+    }
+    else if (m_current < m_zeroEnd)
+    {
+        return zero;
+    }
+    else
+    {
+        return *neo::byte_pointer( &(m_data[m_current - (m_zeroEnd - m_zeroStart)] ) );
+        
+    }
+        }
+        const std::byte& operator*() const
+        {
+            return const_cast<ConstIterator&>(*this).operator*();
+        };
+        const std::byte& operator[] ( difference_type n) const { auto tmp{ *this + n}; return *tmp; };
+
+
+
+        ConstIterator() : Iterator() {}
+        ConstIterator( const Iterator& iter ) : Iterator(iter){}
+
+/*      auto operator<=>(const ConstIterator& other)const
+      {
+          
+        NS_ASSERT(m_data == other.m_data);
+        return  m_current <=> other.m_current;
+
+      }*/
+
+
+    private:        
+        friend class Buffer;
+        /**
+         * Constructor - initializes the iterator to point to the buffer start
+         *
+         * \param buffer the buffer this iterator refers to
+         */
+        inline ConstIterator(const Buffer* buffer): Iterator(buffer){}
+        /**
+         * Constructor - initializes the iterator to point to the buffer end
+         *
+         * \param buffer the buffer this iterator refers to
+         * \param dummy not used param
+         */
+        inline ConstIterator(const Buffer* buffer, bool dummy):Iterator(buffer,dummy){};
+
+        using Iterator::WriteU8;                
+        using Iterator::WriteU16;        
+        using Iterator::WriteU32;        
+        using Iterator::WriteU64;        
+        using Iterator::WriteHtolsbU16;        
+        using Iterator::WriteHtolsbU32;
+        using Iterator::WriteHtolsbU64;
+        using Iterator::WriteHtonU16;
+        using Iterator::WriteHtonU32;
+        using Iterator::WriteHtonU64;
+        using Iterator::Write;
+    };
+
+    using iterator = Iterator;
+    using const_iterator = ConstIterator;
+
     /**
      * \return the number of bytes stored in this buffer.
      */
@@ -561,11 +744,28 @@ class Buffer
      * start of this Buffer.
      */
     inline Buffer::Iterator Begin() const;
+
+    Buffer::Iterator begin() const{return Begin();}
+
     /**
      * \return an Iterator which points to the
      * end of this Buffer.
      */
     inline Buffer::Iterator End() const;
+    Buffer::Iterator end() const { return End(); }
+
+     /**
+     * \return an Iterator which points to the
+     * start of this Buffer.
+     */
+    inline Buffer::ConstIterator CBegin() const;
+    Buffer::ConstIterator cbegin()const{return CBegin();}
+    /**
+     * \return an Iterator which points to the
+     * end of this Buffer.
+     */
+    inline Buffer::ConstIterator CEnd() const;
+    Buffer::ConstIterator cend() const{return CEnd();};
 
     /**
      * \brief Return the number of bytes required for serialization.
@@ -1084,6 +1284,42 @@ Buffer::End() const
     return Buffer::Iterator(this, false);
 }
 
+
+Buffer::ConstIterator
+Buffer::CBegin() const
+{
+    NS_ASSERT(CheckInternalState());
+    return Buffer::ConstIterator(this);
+}
+
+Buffer::ConstIterator
+Buffer::CEnd() const
+{
+    NS_ASSERT(CheckInternalState());
+    return Buffer::ConstIterator(this, false);
+}
+
+inline Buffer::Iterator operator+( Buffer::Iterator::difference_type n, const Buffer::Iterator& iter) { return iter+n;}
+inline Buffer::ConstIterator operator+( Buffer::ConstIterator::difference_type n, const Buffer::ConstIterator& iter) { return iter+n;}
+
+inline std::strong_ordering operator<=>(const ns3::Buffer::Iterator&a, const ns3::Buffer::Iterator&b)
+{
+      
+          
+        NS_ASSERT(a.m_data == b.m_data);
+        return  a.m_current <=> b.m_current;
+
+      
+}
+
 } // namespace ns3
+
+
+
+
+
+
+  static_assert(std::random_access_iterator<ns3::Buffer::Iterator> );
+    static_assert(std::random_access_iterator<ns3::Buffer::ConstIterator> );
 
 #endif /* BUFFER_H */

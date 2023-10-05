@@ -69,6 +69,8 @@ class ScionHost : public ScionCapableNode
                                        ia_t src_ia,
                                        ia_t dst_ia,
                                        const reg_path_segs_to_one_as_t* path_segments);
+
+    // this is unused                                   
     void ReceiveCachedPathSegments(PathSegmentType seg_type,
                                    ia_t src_ia,
                                    ia_t dst_ia,

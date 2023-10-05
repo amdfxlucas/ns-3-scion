@@ -42,6 +42,7 @@ class PathSegment;
 #define ORIGINATOR(beacon)                                                                         \
     (UPPER_16_BITS(beacon.the_path.front())) // sender_as of first link-info in path
 #define ORIGINATOR_PTR(beacon) (UPPER_16_BITS(beacon->the_path.front()))
+
 // Also  sender_as of first link-info in path ?!
 #define DST_AS(beacon)                                                                             \
     (beacon.beacon_direction == BeaconDirectionT::PULL_BASED                                       \
